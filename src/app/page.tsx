@@ -155,7 +155,7 @@ export default function Home() {
         />
 
         <RecentLogs logs={logs} />
-        <AIInsightCard logs={logs} />
+        <AIInsightCard userId={user.id} logs={logs} />
       </div>
     </main>
   );

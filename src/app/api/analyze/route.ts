@@ -7,6 +7,8 @@ export async function POST(request: Request) {
 
     const result = await analyzeLogs(logs);
 
+    console.log(result);
+
     return NextResponse.json(result);
   } catch (error) {
     console.error(error);
