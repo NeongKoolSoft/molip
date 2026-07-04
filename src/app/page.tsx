@@ -20,6 +20,9 @@ import LoginForm from "@/components/LoginForm";
 import DailyLogForm from "@/components/DailyLogForm";
 import RecentLogs from "@/components/RecentLogs";
 import AIInsightCard from "@/components/AIInsightCard";
+import ReactionTrendCard from "@/components/ReactionTrendCard";
+import ReactionTimelineCard from "@/components/ReactionTimelineCard";
+import { deleteTodayAnalysis } from "@/services/aiAnalysisService";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -30,6 +33,8 @@ export default function Home() {
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
   const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [analysisVersion, setAnalysisVersion] = useState(0);
+  const [timelineVersion, setTimelineVersion] = useState(0);
 
   const refreshLogs = async (userId: string) => {
     const todayContent = await loadTodayLog(userId);
@@ -121,8 +126,11 @@ export default function Home() {
 
     try {
       await saveTodayLog(user.id, content);
+      await deleteTodayAnalysis(user.id);      
       await refreshLogs(user.id);
-      setMessage("오늘의 기록이 저장되었습니다.");
+
+      setAnalysisVersion((prev) => prev + 1);
+      setMessage("오늘의 기록이 저장되었습니다. AI 분석을 다시 실행해 주세요.");
     } catch (error) {
       console.error(error);
       setMessage("저장 중 오류가 발생했습니다.");
@@ -155,8 +163,11 @@ export default function Home() {
         />
 
         <RecentLogs logs={logs} />
-        <AIInsightCard userId={user.id} logs={logs} />
+        <AIInsightCard userId={user.id} logs={logs} refreshKey={analysisVersion} onAnalysisComplete={() => setTimelineVersion((prev) => prev + 1)}/>
+        <ReactionTrendCard userId={user.id} />
+        <ReactionTimelineCard userId={user.id} refreshKey={timelineVersion} />
       </div>
     </main>
   );
+  
 }

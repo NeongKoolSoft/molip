@@ -53,6 +53,13 @@ interest, desire, avoidance, burden, joy, regret, immersion, concern, energy
 7. immersion_score는 전체 기록 기준 몰입 신호의 강도다.
 8. confidence는 분석 신뢰도다.
 9. 사용자를 단정하지 말고 "최근 기록에서는..." 관점으로 작성하라.
+10. normalized_target은 날짜가 달라도 같은 주제라면 반드시 같은 이름을 사용하라.
+예:
+- "Molip 저장 기능", "Molip 개발", "프로젝트 개발", "개인 프로젝트 진행"은 모두 "Molip 개발"로 정규화한다.
+- "카드값", "지출관리", "돈 걱정", "아껴 써야 한다"는 모두 "경제적 부담"으로 정규화한다.
+- "운동", "헬스", "걷기", "찜질"은 모두 "운동"으로 정규화한다.
+
+새로운 표현이 있어도, 가능한 한 기존 normalized_target과 의미가 같은지 먼저 판단하라.
 
 응답 형식:
 {

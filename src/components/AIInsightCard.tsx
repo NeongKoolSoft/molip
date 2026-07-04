@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import type { DailyLog } from "@/types/dailyLog";
 import type { AIInsight } from "@/services/aiInsightService";
-import { saveAIAnalysis } from "@/services/aiAnalysisService";
+import { useEffect, useState } from "react";
+import {
+  getTodayAnalysis,
+  saveAIAnalysis,
+} from "@/services/aiAnalysisService";
 
 type AIInsightCardProps = {
   userId: string;
   logs: DailyLog[];
+  refreshKey: number;
+  onAnalysisComplete: () => void;
+
 };
 
 const typeLabels: Record<string, string> = {
@@ -22,23 +28,38 @@ const typeLabels: Record<string, string> = {
   energy: "에너지",
 };
 
-export default function AIInsightCard({ userId, logs }: AIInsightCardProps) {
+export default function AIInsightCard({
+  userId,
+  logs,
+  refreshKey,
+  onAnalysisComplete,
+}: AIInsightCardProps) {  
   const [insight, setInsight] = useState<AIInsight | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-
+  const today = new Date().toISOString().slice(0, 10);
+  const todayLogs = logs.filter((log) => log.log_date === today);
+  
   const handleAnalyze = async () => {
     setInsight(null);
     setLoading(true);
     setMessage("");
 
     try {
+      const cached = await getTodayAnalysis(userId);
+
+      if (cached) {
+        setInsight(cached);
+        onAnalysisComplete();
+        return;
+      }
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ logs }),
+        body: JSON.stringify({ logs: todayLogs }),
       });
 
       if (!response.ok) {
@@ -46,8 +67,11 @@ export default function AIInsightCard({ userId, logs }: AIInsightCardProps) {
       }
 
       const data = await response.json();
+      
       setInsight(data);
       await saveAIAnalysis(userId, data);
+      onAnalysisComplete();
+
     } catch (error) {
       console.error(error);
       setMessage("AI 분석 중 오류가 발생했습니다.");
@@ -55,6 +79,23 @@ export default function AIInsightCard({ userId, logs }: AIInsightCardProps) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setInsight(null);
+    const loadCachedAnalysis = async () => {
+      try {
+        const cached = await getTodayAnalysis(userId);
+
+        if (cached) {
+          setInsight(cached);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadCachedAnalysis();
+  }, [userId, refreshKey]);
 
   return (
     <div className="mt-10 rounded-2xl border border-blue-100 bg-blue-50 p-5">
