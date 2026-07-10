@@ -22,7 +22,9 @@ export const loadTodayLog = async (userId: string) => {
   return data?.content ?? "";
 };
 
-export const loadRecentLogs = async (userId: string): Promise<DailyLog[]> => {
+export const loadRecentLogs = async (
+  userId: string
+): Promise<DailyLog[]> => {
   const { data, error } = await supabase
     .from("daily_logs")
     .select("id, log_date, content")
@@ -37,21 +39,50 @@ export const loadRecentLogs = async (userId: string): Promise<DailyLog[]> => {
   return data ?? [];
 };
 
-export const saveTodayLog = async (userId: string, content: string) => {
+export const loadTodayLogRow = async (
+  userId: string
+): Promise<DailyLog | null> => {
   const today = getToday();
 
-  const { error } = await supabase.from("daily_logs").upsert(
-    {
-      user_id: userId,
-      log_date: today,
-      content: content.trim(),
-    },
-    {
-      onConflict: "user_id,log_date",
-    }
-  );
+  const { data, error } = await supabase
+    .from("daily_logs")
+    .select("id, log_date, content")
+    .eq("user_id", userId)
+    .eq("log_date", today)
+    .maybeSingle();
 
   if (error) {
     throw error;
   }
+
+  return data ?? null;
+};
+
+export const saveTodayLog = async (
+  userId: string,
+  content: string
+): Promise<DailyLog> => {
+  const today = getToday();
+  const trimmedContent = content.trim();
+
+  const { data, error } = await supabase
+    .from("daily_logs")
+    .upsert(
+      {
+        user_id: userId,
+        log_date: today,
+        content: trimmedContent,
+      },
+      {
+        onConflict: "user_id,log_date",
+      }
+    )
+    .select("id, log_date, content")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 };
