@@ -1,19 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import type { DailyLog } from "@/types/dailyLog";
 import type { AIInsight } from "@/services/aiInsightService";
-import { useEffect, useState } from "react";
 import {
   getTodayAnalysis,
   saveAIAnalysis,
 } from "@/services/aiAnalysisService";
+
+type LegacyAIInsight = AIInsight & {
+  question?: string;
+};
 
 type AIInsightCardProps = {
   userId: string;
   logs: DailyLog[];
   refreshKey: number;
   onAnalysisComplete: () => void;
-
 };
 
 const typeLabels: Record<string, string> = {
@@ -33,13 +37,14 @@ export default function AIInsightCard({
   logs,
   refreshKey,
   onAnalysisComplete,
-}: AIInsightCardProps) {  
-  const [insight, setInsight] = useState<AIInsight | null>(null);
+}: AIInsightCardProps) {
+  const [insight, setInsight] = useState<LegacyAIInsight | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
   const today = new Date().toISOString().slice(0, 10);
   const todayLogs = logs.filter((log) => log.log_date === today);
-  
+
   const handleAnalyze = async () => {
     setInsight(null);
     setLoading(true);
@@ -66,12 +71,11 @@ export default function AIInsightCard({
         throw new Error("AI 분석 실패");
       }
 
-      const data = await response.json();
-      
+      const data: AIInsight = await response.json();
+
       setInsight(data);
       await saveAIAnalysis(userId, data);
       onAnalysisComplete();
-
     } catch (error) {
       console.error(error);
       setMessage("AI 분석 중 오류가 발생했습니다.");
@@ -82,6 +86,7 @@ export default function AIInsightCard({
 
   useEffect(() => {
     setInsight(null);
+
     const loadCachedAnalysis = async () => {
       try {
         const cached = await getTodayAnalysis(userId);
@@ -97,11 +102,16 @@ export default function AIInsightCard({
     loadCachedAnalysis();
   }, [userId, refreshKey]);
 
+  const reflectionQuestion =
+    insight?.reflection_question ??
+    insight?.question ??
+    "최근 가장 오래 마음에 남은 반응은 무엇이었고, 왜 그랬을까요?";
+
   return (
     <div className="mt-10 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-      <h2 className="text-xl font-bold mb-3">AI가 발견한 나의 변화</h2>
+      <h2 className="mb-3 text-xl font-bold">AI가 발견한 나의 변화</h2>
 
-      <p className="text-gray-700 leading-7">
+      <p className="leading-7 text-gray-700">
         최근 기록을 기반으로
         <br />
         반복되는 반응 대상과 몰입 신호를 분석합니다.
@@ -109,8 +119,8 @@ export default function AIInsightCard({
 
       <button
         onClick={handleAnalyze}
-        disabled={loading || logs.length === 0}
-        className="mt-5 w-full rounded-xl bg-blue-600 py-3 text-white font-semibold disabled:bg-gray-300"
+        disabled={loading || todayLogs.length === 0}
+        className="mt-5 w-full rounded-xl bg-blue-600 py-3 font-semibold text-white disabled:bg-gray-300"
       >
         {loading ? "분석 중..." : "AI 분석하기"}
       </button>
@@ -118,7 +128,7 @@ export default function AIInsightCard({
       {message && <p className="mt-4 text-sm text-red-500">{message}</p>}
 
       {insight && (
-        <div className="mt-5 rounded-xl bg-white p-4 text-sm text-gray-700 leading-6">
+        <div className="mt-5 rounded-xl bg-white p-4 text-sm leading-6 text-gray-700">
           <p className="font-semibold">반응 대상</p>
 
           <div className="mt-3 space-y-3">
@@ -131,28 +141,29 @@ export default function AIInsightCard({
                   typeof item.weight === "number"
               )
               .map((item) => (
-              <div
-                key={`${item.target}-${item.type}`}
-                className="rounded-xl border border-gray-200 p-3"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-semibold">{item.normalized_target}</p>
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">
-                    {typeLabels[item.type] ?? item.type}
-                  </span>
+                <div
+                  key={`${item.target}-${item.type}`}
+                  className="rounded-xl border border-gray-200 p-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold">{item.normalized_target}</p>
+
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">
+                      {typeLabels[item.type] ?? item.type}
+                    </span>
+                  </div>
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    원문 표현: {item.target}
+                  </p>
+
+                  <p className="mt-2 text-gray-700">{item.evidence}</p>
+
+                  <p className="mt-2 text-xs text-gray-500">
+                    반응 강도 {Math.round(item.weight * 100)}%
+                  </p>
                 </div>
-
-                <p className="mt-1 text-xs text-gray-500">
-                  원문 표현: {item.target}
-                </p>
-
-                <p className="mt-2 text-gray-700">{item.evidence}</p>
-
-                <p className="mt-2 text-xs text-gray-500">
-                  반응 강도 {Math.round(item.weight * 100)}%
-                </p>
-              </div>
-            ))}
+              ))}
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
@@ -184,8 +195,10 @@ export default function AIInsightCard({
           <p className="mt-5 font-semibold">요약</p>
           <p className="mt-1">{insight.summary}</p>
 
-          <p className="mt-4 font-semibold">다음 질문</p>
-          <p className="mt-1">{insight.question}</p>
+          <div className="mt-6 rounded-xl border-l-4 border-blue-500 bg-blue-50 p-4">
+            <p className="font-semibold">🤔 잠시 돌아보기</p>
+            <p className="mt-2 leading-7">{reflectionQuestion}</p>
+          </div>
         </div>
       )}
     </div>
