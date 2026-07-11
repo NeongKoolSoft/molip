@@ -31,6 +31,7 @@ import ReactionTimelineCard from "@/components/ReactionTimelineCard";
 import GrowthSignalCard from "@/components/GrowthSignalCard";
 import MeaningGrowthCard from "@/components/MeaningGrowthCard";
 import { deleteTodayMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
+import ImmersionDiscoveryCard from "@/components/ImmersionDiscoveryCard";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -244,6 +245,11 @@ export default function Home() {
         <MeaningGrowthCard
           userId={user.id}          
           refreshKey={meaningGrowthVersion}
+        />
+
+        <ImmersionDiscoveryCard
+          userId={user.id}
+          refreshKey={analysisVersion}
         />
 
         <ReactionTrendCard userId={user.id} />
