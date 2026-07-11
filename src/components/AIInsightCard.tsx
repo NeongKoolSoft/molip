@@ -9,6 +9,13 @@ import {
   saveAIAnalysis,
 } from "@/services/aiAnalysisService";
 
+import {
+  analyzeMeaningGrowth,
+  loadTodayMeaningGrowthRevisionContext,
+} from "@/services/meaningGrowthService";
+
+import { saveMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
+
 type LegacyAIInsight = AIInsight & {
   question?: string;
 };
@@ -18,6 +25,7 @@ type AIInsightCardProps = {
   logs: DailyLog[];
   refreshKey: number;
   onAnalysisComplete: () => void;
+  onMeaningGrowthComplete: () => void;  
 };
 
 const typeLabels: Record<string, string> = {
@@ -32,11 +40,13 @@ const typeLabels: Record<string, string> = {
   energy: "에너지",
 };
 
+
 export default function AIInsightCard({
   userId,
   logs,
   refreshKey,
   onAnalysisComplete,
+  onMeaningGrowthComplete,
 }: AIInsightCardProps) {
   const [insight, setInsight] = useState<LegacyAIInsight | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,6 +54,31 @@ export default function AIInsightCard({
 
   const today = new Date().toISOString().slice(0, 10);
   const todayLogs = logs.filter((log) => log.log_date === today);
+
+  const createAndSaveMeaningGrowth = async () => {
+    const context =
+      await loadTodayMeaningGrowthRevisionContext(userId);
+
+    if (!context) {
+      return;
+    }
+
+    const meaningGrowth = await analyzeMeaningGrowth(
+      context.initialContent,
+      context.latestContent
+    );
+
+    await saveMeaningGrowthAnalysis({
+      userId,
+      dailyLogId: context.dailyLogId,
+      logDate: context.logDate,
+      initialRevisionNumber: context.initialRevisionNumber,
+      latestRevisionNumber: context.latestRevisionNumber,
+      result: meaningGrowth,
+    });
+
+    onMeaningGrowthComplete();
+  };
 
   const handleAnalyze = async () => {
     setInsight(null);
@@ -75,6 +110,7 @@ export default function AIInsightCard({
 
       setInsight(data);
       await saveAIAnalysis(userId, data);
+      await createAndSaveMeaningGrowth();
       onAnalysisComplete();
     } catch (error) {
       console.error(error);

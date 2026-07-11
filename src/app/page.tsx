@@ -28,6 +28,9 @@ import RecentLogs from "@/components/RecentLogs";
 import AIInsightCard from "@/components/AIInsightCard";
 import ReactionTrendCard from "@/components/ReactionTrendCard";
 import ReactionTimelineCard from "@/components/ReactionTimelineCard";
+import GrowthSignalCard from "@/components/GrowthSignalCard";
+import MeaningGrowthCard from "@/components/MeaningGrowthCard";
+import { deleteTodayMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -41,6 +44,7 @@ export default function Home() {
 
   const [analysisVersion, setAnalysisVersion] = useState(0);
   const [timelineVersion, setTimelineVersion] = useState(0);
+  const [meaningGrowthVersion, setMeaningGrowthVersion] = useState(0);
 
   const refreshLogs = async (userId: string) => {
     const todayContent = await loadTodayLog(userId);
@@ -176,6 +180,7 @@ export default function Home() {
 
       // 기록이 변경됐으므로 기존 AI 분석 결과를 삭제한다.
       await deleteTodayAnalysis(user.id);
+      await deleteTodayMeaningGrowthAnalysis(user.id);
 
       await refreshLogs(user.id);
 
@@ -226,6 +231,19 @@ export default function Home() {
           onAnalysisComplete={() =>
             setTimelineVersion((prev) => prev + 1)
           }
+          onMeaningGrowthComplete={() =>
+            setMeaningGrowthVersion((prev) => prev + 1)
+          }
+        />
+
+        <GrowthSignalCard
+          userId={user.id}
+          refreshKey={analysisVersion}
+        />
+
+        <MeaningGrowthCard
+          userId={user.id}          
+          refreshKey={meaningGrowthVersion}
         />
 
         <ReactionTrendCard userId={user.id} />
@@ -234,6 +252,7 @@ export default function Home() {
           userId={user.id}
           refreshKey={timelineVersion}
         />
+
       </div>
     </main>
   );
