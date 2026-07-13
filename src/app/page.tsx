@@ -32,6 +32,8 @@ import GrowthSignalCard from "@/components/GrowthSignalCard";
 import MeaningGrowthCard from "@/components/MeaningGrowthCard";
 import { deleteTodayMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
 import ImmersionDiscoveryCard from "@/components/ImmersionDiscoveryCard";
+import { deleteTodayTodaysReflection } from "@/services/todaysReflectionAnalysisService";
+import TodaysReflectionCard from "@/components/TodaysReflectionCard";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -46,6 +48,11 @@ export default function Home() {
   const [analysisVersion, setAnalysisVersion] = useState(0);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const [meaningGrowthVersion, setMeaningGrowthVersion] = useState(0);
+
+  const [
+  todaysReflectionVersion,
+  setTodaysReflectionVersion,
+  ] = useState(0);
 
   const refreshLogs = async (userId: string) => {
     const todayContent = await loadTodayLog(userId);
@@ -182,6 +189,7 @@ export default function Home() {
       // 기록이 변경됐으므로 기존 AI 분석 결과를 삭제한다.
       await deleteTodayAnalysis(user.id);
       await deleteTodayMeaningGrowthAnalysis(user.id);
+      await deleteTodayTodaysReflection(user.id);      
 
       await refreshLogs(user.id);
 
@@ -225,6 +233,11 @@ export default function Home() {
 
         <RecentLogs logs={logs} />
 
+        <TodaysReflectionCard
+          userId={user.id}
+          refreshKey={todaysReflectionVersion}
+        />
+
         <AIInsightCard
           userId={user.id}
           logs={logs}
@@ -234,6 +247,9 @@ export default function Home() {
           }
           onMeaningGrowthComplete={() =>
             setMeaningGrowthVersion((prev) => prev + 1)
+          }
+          onTodaysReflectionComplete={() =>
+            setTodaysReflectionVersion((prev) => prev + 1)
           }
         />
 

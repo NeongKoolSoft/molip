@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import type { DailyLog } from "@/types/dailyLog";
 import type { AIInsight } from "@/services/aiInsightService";
+
 import {
   getTodayAnalysis,
   saveAIAnalysis,
@@ -14,7 +15,20 @@ import {
   loadTodayMeaningGrowthRevisionContext,
 } from "@/services/meaningGrowthService";
 
-import { saveMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
+import {
+  getTodayMeaningGrowthAnalysis,
+  saveMeaningGrowthAnalysis,
+} from "@/services/meaningGrowthAnalysisService";
+
+import {
+  generateTodaysReflection,
+  loadTodaysReflectionContext,
+} from "@/services/todaysReflectionService";
+
+import {
+  getTodayTodaysReflection,
+  saveTodaysReflection,
+} from "@/services/todaysReflectionAnalysisService";
 
 type LegacyAIInsight = AIInsight & {
   question?: string;
@@ -25,7 +39,8 @@ type AIInsightCardProps = {
   logs: DailyLog[];
   refreshKey: number;
   onAnalysisComplete: () => void;
-  onMeaningGrowthComplete: () => void;  
+  onMeaningGrowthComplete: () => void;
+  onTodaysReflectionComplete: () => void;
 };
 
 const typeLabels: Record<string, string> = {
@@ -40,13 +55,13 @@ const typeLabels: Record<string, string> = {
   energy: "에너지",
 };
 
-
 export default function AIInsightCard({
   userId,
   logs,
   refreshKey,
   onAnalysisComplete,
   onMeaningGrowthComplete,
+  onTodaysReflectionComplete,
 }: AIInsightCardProps) {
   const [insight, setInsight] = useState<LegacyAIInsight | null>(null);
   const [loading, setLoading] = useState(false);
@@ -55,7 +70,20 @@ export default function AIInsightCard({
   const today = new Date().toISOString().slice(0, 10);
   const todayLogs = logs.filter((log) => log.log_date === today);
 
-  const createAndSaveMeaningGrowth = async () => {
+  /**
+   * 최초 Revision과 최신 Revision이 모두 있을 때
+   * Meaning Growth를 생성하고 저장한다.
+   *
+   * 이미 저장된 결과가 있다면 다시 생성하지 않는다.
+   */
+  const ensureMeaningGrowth = async () => {
+    const cachedMeaningGrowth =
+      await getTodayMeaningGrowthAnalysis(userId);
+
+    if (cachedMeaningGrowth) {
+      return;
+    }
+
     const context =
       await loadTodayMeaningGrowthRevisionContext(userId);
 
@@ -80,6 +108,56 @@ export default function AIInsightCard({
     onMeaningGrowthComplete();
   };
 
+  /**
+   * 저장된 분석 결과를 모아 Today's Reflection을 생성한다.
+   *
+   * 이미 저장된 Today's Reflection이 있다면
+   * Gemini를 다시 호출하지 않는다.
+   */
+  const ensureTodaysReflection = async () => {
+    const cachedReflection =
+      await getTodayTodaysReflection(userId);
+
+    if (cachedReflection) {
+      return;
+    }
+
+    const context = await loadTodaysReflectionContext(userId);
+
+    if (
+      !context.dailyLogId ||
+      !context.latestRevisionNumber
+    ) {
+      return;
+    }
+
+    const result = await generateTodaysReflection(context);
+
+    await saveTodaysReflection({
+      userId,
+      dailyLogId: context.dailyLogId,
+      logDate: context.logDate,
+      latestRevisionNumber:
+        context.latestRevisionNumber,
+      result,
+      context,
+    });
+
+    onTodaysReflectionComplete();
+  };
+
+  /**
+   * 기본 Reaction 분석 이후 실행되는 파생 분석 흐름이다.
+   *
+   * Meaning Growth가 DB에 저장된 뒤
+   * Today's Reflection Context를 구성해야
+   * 최신 Meaning Growth가 반영된다.
+   */
+  const createDerivedAnalyses = async () => {
+    await ensureMeaningGrowth();
+    await ensureTodaysReflection();
+  };
+
   const handleAnalyze = async () => {
     setInsight(null);
     setLoading(true);
@@ -91,6 +169,20 @@ export default function AIInsightCard({
       if (cached) {
         setInsight(cached);
         onAnalysisComplete();
+
+        try {
+          await createDerivedAnalyses();
+        } catch (derivedError) {
+          console.error(
+            "파생 분석 생성 오류:",
+            derivedError
+          );
+
+          setMessage(
+            "기본 AI 분석은 불러왔지만, 생각의 흐름을 만드는 중 일부 오류가 발생했습니다."
+          );
+        }
+
         return;
       }
 
@@ -99,19 +191,44 @@ export default function AIInsightCard({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ logs: todayLogs }),
+        body: JSON.stringify({
+          logs: todayLogs,
+        }),
       });
 
       if (!response.ok) {
+        const responseText = await response.text();
+
+        console.error(
+          "AI 분석 API 오류:",
+          response.status,
+          responseText
+        );
+
         throw new Error("AI 분석 실패");
       }
 
       const data: AIInsight = await response.json();
 
       setInsight(data);
+
       await saveAIAnalysis(userId, data);
-      await createAndSaveMeaningGrowth();
+
+      // Reaction 관련 카드부터 갱신한다.
       onAnalysisComplete();
+
+      try {
+        await createDerivedAnalyses();
+      } catch (derivedError) {
+        console.error(
+          "파생 분석 생성 오류:",
+          derivedError
+        );
+
+        setMessage(
+          "AI 분석은 완료됐지만, 생각의 흐름을 만드는 중 일부 오류가 발생했습니다."
+        );
+      }
     } catch (error) {
       console.error(error);
       setMessage("AI 분석 중 오류가 발생했습니다.");
@@ -145,7 +262,9 @@ export default function AIInsightCard({
 
   return (
     <div className="mt-10 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-      <h2 className="mb-3 text-xl font-bold">AI가 발견한 나의 변화</h2>
+      <h2 className="mb-3 text-xl font-bold">
+        AI가 발견한 나의 변화
+      </h2>
 
       <p className="leading-7 text-gray-700">
         최근 기록을 기반으로
@@ -161,7 +280,11 @@ export default function AIInsightCard({
         {loading ? "분석 중..." : "AI 분석하기"}
       </button>
 
-      {message && <p className="mt-4 text-sm text-red-500">{message}</p>}
+      {message && (
+        <p className="mt-4 text-sm text-red-500">
+          {message}
+        </p>
+      )}
 
       {insight && (
         <div className="mt-5 rounded-xl bg-white p-4 text-sm leading-6 text-gray-700">
@@ -182,7 +305,9 @@ export default function AIInsightCard({
                   className="rounded-xl border border-gray-200 p-3"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold">{item.normalized_target}</p>
+                    <p className="font-semibold">
+                      {item.normalized_target}
+                    </p>
 
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">
                       {typeLabels[item.type] ?? item.type}
@@ -193,10 +318,13 @@ export default function AIInsightCard({
                     원문 표현: {item.target}
                   </p>
 
-                  <p className="mt-2 text-gray-700">{item.evidence}</p>
+                  <p className="mt-2 text-gray-700">
+                    {item.evidence}
+                  </p>
 
                   <p className="mt-2 text-xs text-gray-500">
-                    반응 강도 {Math.round(item.weight * 100)}%
+                    반응 강도{" "}
+                    {Math.round(item.weight * 100)}%
                   </p>
                 </div>
               ))}
@@ -205,23 +333,32 @@ export default function AIInsightCard({
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-gray-200 p-3">
               <p className="text-gray-500">전체 감정</p>
-              <p className="mt-1 font-semibold">{insight.overall_emotion}</p>
+              <p className="mt-1 font-semibold">
+                {insight.overall_emotion}
+              </p>
             </div>
 
             <div className="rounded-xl border border-gray-200 p-3">
               <p className="text-gray-500">에너지</p>
-              <p className="mt-1 font-semibold">{insight.overall_energy}</p>
+              <p className="mt-1 font-semibold">
+                {insight.overall_energy}
+              </p>
             </div>
 
             <div className="rounded-xl border border-gray-200 p-3">
               <p className="text-gray-500">몰입 신호</p>
               <p className="mt-1 font-semibold">
-                {Math.round(insight.immersion_score * 100)}%
+                {Math.round(
+                  insight.immersion_score * 100
+                )}
+                %
               </p>
             </div>
 
             <div className="rounded-xl border border-gray-200 p-3">
-              <p className="text-gray-500">분석 신뢰도</p>
+              <p className="text-gray-500">
+                분석 신뢰도
+              </p>
               <p className="mt-1 font-semibold">
                 {Math.round(insight.confidence * 100)}%
               </p>
@@ -232,8 +369,13 @@ export default function AIInsightCard({
           <p className="mt-1">{insight.summary}</p>
 
           <div className="mt-6 rounded-xl border-l-4 border-blue-500 bg-blue-50 p-4">
-            <p className="font-semibold">🤔 잠시 돌아보기</p>
-            <p className="mt-2 leading-7">{reflectionQuestion}</p>
+            <p className="font-semibold">
+              🤔 잠시 돌아보기
+            </p>
+
+            <p className="mt-2 leading-7">
+              {reflectionQuestion}
+            </p>
           </div>
         </div>
       )}
