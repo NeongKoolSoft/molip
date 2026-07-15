@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { generateGeminiText } from "@/providers/geminiProvider";
+import { generateAIText } from "@/providers";
 import type {
   MeaningGrowth,
   MeaningStage,
@@ -138,7 +138,7 @@ ${latestContent}
 """
 `;
 
-    const text = await generateGeminiText(prompt);
+    const text = await generateAIText(prompt);
 
     console.log("Meaning Growth raw response:", text);
 

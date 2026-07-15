@@ -34,6 +34,7 @@ export default function ImmersionDiscoveryCard({
 }: Props) {
   const [targets, setTargets] = useState<ImmersionTargetEvidence[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -42,6 +43,7 @@ export default function ImmersionDiscoveryCard({
       try {
         const result = await loadImmersionTargetEvidence(userId);
         setTargets(result);
+        setShowAll(false);
       } catch (error) {
         console.error(error);
       } finally {
@@ -65,103 +67,97 @@ export default function ImmersionDiscoveryCard({
   if (targets.length === 0) {
     return (
       <div className="mt-10 rounded-2xl border border-purple-100 bg-purple-50 p-5">
-        <h2 className="text-xl font-bold">
-          반복되는 반응
-        </h2>
+        <h2 className="text-xl font-bold">반복되는 반응</h2>
 
-        <p className="mt-3 text-gray-600 leading-7">
+        <p className="mt-3 leading-7 text-gray-600">
           아직 충분한 기록이 없습니다.
           <br />
-          며칠간 기록이 쌓이면
-          반복되는 반응이 나타납니다.
+          며칠간 기록이 쌓이면 반복되는 반응이 나타납니다.
         </p>
       </div>
     );
   }
 
+  const visibleTargets = showAll ? targets : targets.slice(0, 5);
+
   return (
     <section className="mt-10 rounded-2xl border border-purple-100 bg-purple-50 p-5">
-
-      <h2 className="text-xl font-bold">
-        반복되는 반응
-      </h2>
+      <h2 className="text-xl font-bold">반복되는 반응</h2>
 
       <p className="mt-2 text-gray-600">
         최근 기록에서 자주 등장한 대상입니다.
       </p>
 
       <div className="mt-5 space-y-4">
-        {targets.map((item) => (
+        {visibleTargets.map((item) => (
           <div
             key={item.target}
-            className="rounded-xl bg-white border border-purple-100 p-4"
+            className="rounded-xl border border-purple-100 bg-white p-4"
           >
             <div className="flex items-center justify-between">
-
-              <p className="font-semibold text-lg">
-                {item.target}
-              </p>
+              <p className="text-lg font-semibold">{item.target}</p>
 
               <span className="rounded-full bg-purple-50 px-3 py-1 text-xs text-purple-700">
-                {typeLabel[item.dominantType]}
+                {typeLabel[item.dominantType] ?? item.dominantType}
               </span>
-
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-
               <div>
-                <p className="text-xs text-gray-500">
-                  등장
-                </p>
-
-                <p className="font-semibold">
-                  {item.frequency}회
-                </p>
+                <p className="text-xs text-gray-500">등장</p>
+                <p className="font-semibold">{item.frequency}회</p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-500">
-                  평균 반응
-                </p>
-
+                <p className="text-xs text-gray-500">평균 반응</p>
                 <p className="font-semibold">
                   {Math.round(item.averageWeight * 100)}%
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-500">
-                  최근 반응
-                </p>
-
+                <p className="text-xs text-gray-500">최근 반응</p>
                 <p className="font-semibold">
                   {Math.round(item.latestWeight * 100)}%
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-500">
-                  변화
-                </p>
-
-                <p className="font-semibold">
-                  {trendLabel[item.trend]}
-                </p>
+                <p className="text-xs text-gray-500">변화</p>
+                <p className="font-semibold">{trendLabel[item.trend]}</p>
               </div>
-
             </div>
 
             <p className="mt-4 text-xs text-gray-500">
-              {item.firstSeenAt}
-              {" ~ "}
-              {item.latestSeenAt}
+              {item.firstSeenAt} ~ {item.latestSeenAt}
             </p>
-
           </div>
         ))}
       </div>
 
+      {targets.length > 5 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((previous) => !previous)}
+          aria-expanded={showAll}
+          className="mt-4 flex w-full items-center justify-between rounded-xl border border-purple-100 bg-white px-4 py-3 text-sm font-semibold text-purple-700 transition hover:bg-purple-50"
+        >
+          <span>
+            {showAll
+              ? "접기"
+              : `전체 보기 (${targets.length})`}
+          </span>
+
+          <span
+            aria-hidden="true"
+            className={`transition-transform ${
+              showAll ? "rotate-180" : ""
+            }`}
+          >
+            ▼
+          </span>
+        </button>
+      )}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import type { DailyLog } from "@/types/dailyLog";
-import { generateAIText } from "@/providers";
+import { generateGeminiText } from "@/providers/geminiProvider";
 
 export type ReactionTarget = {
   target: string;
@@ -102,14 +102,13 @@ reflection_question 규칙:
   "confidence": 0.88,
   "summary": "최근 기록에서는 운동과 Molip 개발, 경제적 부담이 반복적으로 마음에 남는 신호로 보입니다.",
   "reflection_question": "최근 경제적 부담이 마음에 남을 때, 실제 지출과 미래에 대한 걱정 중 무엇이 더 크게 느껴졌나요?"
-
 }
 
 사용자 기록:
 ${JSON.stringify(logs, null, 2)}
 `;
 
-  const text = await generateAIText(prompt);
+  const text = await generateGeminiText(prompt);
 
   const cleaned = text
     .replace(/```json/gi, "")

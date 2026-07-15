@@ -3,12 +3,33 @@ import type { MeaningGrowth } from "@/types/meaningGrowth";
 import type { GrowthSignal } from "@/types/growthSignal";
 import type { ImmersionTargetEvidence } from "@/types/immersionDiscovery";
 
-export type TodaysReflectionContext = {
-  dailyLogId: string | null;
-  logDate: string;
-  latestRevisionNumber: number | null;  
+export type ReflectionThemeReason =
+  | "weight"
+  | "frequency"
+  | "meaning_growth";
 
-  mainReaction: {
+export type ReflectionTheme = {
+  target: string;
+  importance: number;
+  reason: ReflectionThemeReason;
+  reactionType: ReactionTarget["type"];
+};
+
+export type ReflectionTone =
+  | "calm"
+  | "hopeful"
+  | "careful"
+  | "energetic";
+
+export type StoryFlowStep =
+  | "main_theme"
+  | "growth"
+  | "meaning"
+  | "supporting"
+  | "closing";
+
+export type ReflectionEvidence = {
+  reaction: {
     target: string;
     type: ReactionTarget["type"];
     weight: number;
@@ -23,7 +44,7 @@ export type TodaysReflectionContext = {
     summary: string;
   } | null;
 
-  meaningGrowth: {
+  meaning: {
     hasMeaningGrowth: boolean;
     fromStage: MeaningGrowth["fromStage"];
     toStage: MeaningGrowth["toStage"];
@@ -32,7 +53,7 @@ export type TodaysReflectionContext = {
     summary: string;
   } | null;
 
-  immersionEvidence: {
+  immersion: {
     target: string;
     frequency: number;
     averageWeight: number;
@@ -40,6 +61,20 @@ export type TodaysReflectionContext = {
     trend: ImmersionTargetEvidence["trend"];
     dominantType: ImmersionTargetEvidence["dominantType"];
   } | null;
+};
+
+export type TodaysReflectionContext = {
+  dailyLogId: string | null;
+  logDate: string;
+  latestRevisionNumber: number | null;
+
+  primaryTheme: ReflectionTheme | null;
+  supportingThemes: ReflectionTheme[];
+
+  tone: ReflectionTone;
+  storyFlow: StoryFlowStep[];
+
+  evidence: ReflectionEvidence;
 };
 
 export type TodaysReflection = {
