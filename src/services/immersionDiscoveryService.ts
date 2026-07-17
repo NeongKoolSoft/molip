@@ -3,6 +3,7 @@ import { getRecentAnalyses } from "@/services/aiAnalysisService";
 
 import type {
   DatedReactionTarget,
+  ImmersionSignal,
   ImmersionTargetEvidence,
   ImmersionTrend,
 } from "@/types/immersionDiscovery";
@@ -112,6 +113,136 @@ export const aggregateImmersionTargets = (
   });
 };
 
+const positiveTypes = new Set<ReactionTarget["type"]>([
+  "immersion",
+  "interest",
+  "joy",
+  "energy",
+  "desire",
+]);
+
+const getTypePriority = (
+  type: ReactionTarget["type"]
+): number => {
+  switch (type) {
+    case "immersion":
+      return 1;
+    case "joy":
+      return 0.85;
+    case "interest":
+      return 0.8;
+    case "energy":
+      return 0.75;
+    case "desire":
+      return 0.7;
+    default:
+      return 0;
+  }
+};
+
+const calculateImmersionCandidateScore = (
+  item: ImmersionTargetEvidence,
+  maxFrequency: number
+): number => {
+  const frequencyScore =
+    maxFrequency > 0 ? item.frequency / maxFrequency : 0;
+
+  const trendBonus =
+    item.trend === "up"
+      ? 0.08
+      : item.trend === "stable"
+        ? 0.03
+        : 0;
+
+  return (
+    frequencyScore * 0.35 +
+    item.averageWeight * 0.25 +
+    item.latestWeight * 0.2 +
+    getTypePriority(item.dominantType) * 0.2 +
+    trendBonus
+  );
+};
+
+export const buildImmersionSignal = (
+  targets: ImmersionTargetEvidence[]
+): ImmersionSignal => {
+  const candidates = targets.filter((item) =>
+    positiveTypes.has(item.dominantType)
+  );
+
+  if (candidates.length === 0) {
+    return {
+      status: "insufficient",
+      target: null,
+      title: "몰입 신호를 찾는 중입니다",
+      description:
+        "아직 하나의 대상으로 이어지는 몰입 신호는 뚜렷하지 않습니다. 기록이 더 쌓이면 반복성과 변화가 함께 드러날 수 있습니다.",
+    };
+  }
+
+  const maxFrequency = Math.max(
+    ...candidates.map((item) => item.frequency)
+  );
+
+  const orderedCandidates = [...candidates].sort(
+    (a, b) =>
+      calculateImmersionCandidateScore(b, maxFrequency) -
+      calculateImmersionCandidateScore(a, maxFrequency)
+  );
+
+  const candidate = orderedCandidates[0];
+  const score = calculateImmersionCandidateScore(
+    candidate,
+    maxFrequency
+  );
+
+  const isStrong =
+    candidate.frequency >= 2 &&
+    candidate.averageWeight >= 0.7 &&
+    candidate.latestWeight >= 0.65 &&
+    score >= 0.65;
+
+  if (isStrong) {
+    const trendText =
+      candidate.trend === "up"
+        ? "최근 반응도 더 강해지고 있습니다."
+        : candidate.trend === "down"
+          ? "최근 반응은 다소 낮아졌지만 반복해서 나타나고 있습니다."
+          : "최근에도 비슷한 강도로 이어지고 있습니다.";
+
+    return {
+      status: "strong",
+      target: candidate.target,
+      title: "최근 몰입 후보",
+      description: `최근 기록에서는 '${candidate.target}'이 ${candidate.frequency}회 반복해서 나타났고, 평균 반응도 ${Math.round(
+        candidate.averageWeight * 100
+      )}%로 높게 나타났습니다. ${trendText}`,
+    };
+  }
+
+  const hasStrongSingleSignal =
+    candidate.frequency === 1 &&
+    candidate.dominantType === "immersion" &&
+    candidate.latestWeight >= 0.8;
+
+  if (hasStrongSingleSignal) {
+    return {
+      status: "emerging",
+      target: candidate.target,
+      title: "새롭게 나타난 몰입 후보",
+      description: `'${candidate.target}'은 아직 한 번만 발견됐지만, 몰입 유형과 높은 반응 강도가 함께 나타났습니다. 앞으로도 이어지는지 조금 더 지켜볼 만한 신호입니다.`,
+    };
+  }
+
+  return {
+    status: "insufficient",
+    target: null,
+    title: "몰입 신호를 찾는 중입니다",
+    description:
+      "반복되는 긍정적 반응은 나타나고 있지만, 아직 하나의 몰입 후보로 보기에는 근거가 충분하지 않습니다.",
+  };
+};
+
 export const loadImmersionTargetEvidence = async (
   userId: string,
   days = 7
@@ -127,4 +258,19 @@ export const loadImmersionTargetEvidence = async (
   );
 
   return aggregateImmersionTargets(reactions);
+};
+
+export const loadImmersionDiscovery = async (
+  userId: string,
+  days = 7
+): Promise<{
+  targets: ImmersionTargetEvidence[];
+  signal: ImmersionSignal;
+}> => {
+  const targets = await loadImmersionTargetEvidence(userId, days);
+
+  return {
+    targets,
+    signal: buildImmersionSignal(targets),
+  };
 };

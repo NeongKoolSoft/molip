@@ -75,7 +75,7 @@ export default function ReactionTimelineCard({
            */
           const visibleItems = isExpanded
             ? group.items
-            : group.items.slice(-VISIBLE_ITEM_COUNT);
+            : group.items.slice(0, VISIBLE_ITEM_COUNT);
 
           const hiddenItemCount = Math.max(
             0,

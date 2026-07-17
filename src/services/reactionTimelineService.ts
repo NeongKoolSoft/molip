@@ -34,8 +34,9 @@ export async function loadReactionTimeline(
     .from("ai_analyses")
     .select("log_date, result")
     .eq("user_id", userId)
-    .order("log_date", { ascending: true })
+    .order("log_date", { ascending: false })
     .limit(14);
+
 
   if (error) {
     throw error;

@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 
 import type { ImmersionTargetEvidence } from "@/types/immersionDiscovery";
-import { loadImmersionTargetEvidence } from "@/services/immersionDiscoveryService";
+//import { loadImmersionTargetEvidence } from "@/services/immersionDiscoveryService";
+
+import { loadImmersionDiscovery,} from "@/services/immersionDiscoveryService";
+import type { ImmersionSignal } from "@/types/immersionDiscovery";
 
 type Props = {
   userId: string;
@@ -33,6 +36,10 @@ export default function ImmersionDiscoveryCard({
   refreshKey,
 }: Props) {
   const [targets, setTargets] = useState<ImmersionTargetEvidence[]>([]);
+
+  const [signal, setSignal] = useState<ImmersionSignal | null>(null);
+
+
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
 
@@ -41,8 +48,11 @@ export default function ImmersionDiscoveryCard({
       setLoading(true);
 
       try {
-        const result = await loadImmersionTargetEvidence(userId);
-        setTargets(result);
+        const result = await loadImmersionDiscovery(userId);
+        setTargets(result.targets);
+        setSignal(result.signal);
+
+
         setShowAll(false);
       } catch (error) {
         console.error(error);
@@ -133,6 +143,25 @@ export default function ImmersionDiscoveryCard({
             </p>
           </div>
         ))}
+
+        {signal && (
+          <div className="mt-8 rounded-xl border border-green-200 bg-green-50 p-5">
+
+            <h3 className="text-lg font-semibold text-green-900">
+              🌱 Molip이 발견한 몰입 신호
+            </h3>
+
+            <p className="mt-3 font-medium text-green-800">
+              {signal.title}
+            </p>
+
+            <p className="mt-3 leading-7 text-gray-700">
+              {signal.description}
+            </p>
+
+          </div>
+        )}
+
       </div>
 
       {targets.length > 5 && (
