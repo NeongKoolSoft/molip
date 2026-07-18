@@ -71,7 +71,7 @@ export default function TodaysReflectionCard({
     return (
       <section className="mt-10 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
         <h2 className="text-xl font-bold">
-          🌱 오늘 Molip가 발견한 흐름
+          🌱 오늘 Molip이 발견한 흐름
         </h2>
 
         <div className="mt-4 rounded-xl bg-white p-4">

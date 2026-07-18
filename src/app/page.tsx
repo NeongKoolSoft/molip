@@ -13,7 +13,6 @@ import {
 } from "@/services/dailyLogService";
 
 import {
-  signUp,
   login,
   logout,
   getCurrentUser,
@@ -21,6 +20,10 @@ import {
 
 import { deleteTodayAnalysis } from "@/services/aiAnalysisService";
 import { saveLogRevision } from "@/services/logRevisionService";
+import { deleteTodayMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
+import { deleteTodayTodaysReflection } from "@/services/todaysReflectionAnalysisService";
+
+import { supabase } from "@/lib/supabase";
 
 import LoginForm from "@/components/LoginForm";
 import DailyLogForm from "@/components/DailyLogForm";
@@ -30,16 +33,11 @@ import ReactionTrendCard from "@/components/ReactionTrendCard";
 import ReactionTimelineCard from "@/components/ReactionTimelineCard";
 import GrowthSignalCard from "@/components/GrowthSignalCard";
 import MeaningGrowthCard from "@/components/MeaningGrowthCard";
-import { deleteTodayMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
 import ImmersionDiscoveryCard from "@/components/ImmersionDiscoveryCard";
-import { deleteTodayTodaysReflection } from "@/services/todaysReflectionAnalysisService";
 import TodaysReflectionCard from "@/components/TodaysReflectionCard";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
@@ -48,11 +46,7 @@ export default function Home() {
   const [analysisVersion, setAnalysisVersion] = useState(0);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const [meaningGrowthVersion, setMeaningGrowthVersion] = useState(0);
-
-  const [
-  todaysReflectionVersion,
-  setTodaysReflectionVersion,
-  ] = useState(0);
+  const [todaysReflectionVersion, setTodaysReflectionVersion] = useState(0);
 
   const refreshLogs = async (userId: string) => {
     const todayContent = await loadTodayLog(userId);
@@ -63,55 +57,58 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await getCurrentUser();
+    let isMounted = true;
 
-        if (currentUser) {
-          setUser(currentUser);
-          await refreshLogs(currentUser.id);
-        }
-      } catch (error) {
-        console.error(error);
+    const applyUser = async (currentUser: User | null) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setUser(currentUser);
+
+      if (currentUser) {
+        await refreshLogs(currentUser.id);
+      } else {
+        setContent("");
+        setLogs([]);
       }
     };
 
-    loadUser();
+    const loadInitialUser = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        await applyUser(currentUser);
+      } catch (error) {
+        console.error("초기 로그인 상태 확인 실패:", error);
+      }
+    };
+
+    loadInitialUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => {
+        applyUser(session?.user ?? null).catch((error) => {
+          console.error("로그인 상태 반영 실패:", error);
+        });
+      }, 0);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const handleSignUp = async () => {
-    setMessage("");
-
-    if (!email.trim()) {
-      setMessage("이메일을 입력해 주세요.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setMessage("비밀번호는 6자 이상 입력해 주세요.");
-      return;
-    }
-
-    try {
-      await signUp(email, password);
-      setMessage("회원가입 완료. 로그인해 주세요.");
-    } catch (error) {
-      console.error(error);
-      setMessage("회원가입 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     setMessage("");
 
     try {
-      const loggedInUser = await login(email, password);
-
-      setUser(loggedInUser);
-      await refreshLogs(loggedInUser.id);
+      await login();
     } catch (error) {
       console.error(error);
-      setMessage("로그인 중 오류가 발생했습니다.");
+      setMessage("Google 로그인 중 오류가 발생했습니다.");
     }
   };
 
@@ -145,20 +142,16 @@ export default function Home() {
     }
 
     try {
-      // 저장 전 오늘 기록을 조회한다.
       const previousLog = await loadTodayLogRow(user.id);
 
-      // 기존 내용과 같으면 저장하지 않는다.
       if (previousLog?.content.trim() === trimmedContent) {
         setMessage("변경된 내용이 없습니다.");
         return;
       }
 
-      // daily_logs에는 항상 최신 기록을 저장한다.
       const savedLog = await saveTodayLog(user.id, trimmedContent);
 
       if (!previousLog) {
-        // 오늘의 최초 기록
         await saveLogRevision({
           userId: user.id,
           dailyLogId: savedLog.id,
@@ -167,7 +160,6 @@ export default function Home() {
           source: "initial",
         });
       } else {
-        // 기존 Revision이 없을 수 있으므로 수정 전 기록도 먼저 보존한다.
         await saveLogRevision({
           userId: user.id,
           dailyLogId: previousLog.id,
@@ -176,7 +168,6 @@ export default function Home() {
           source: "initial",
         });
 
-        // 수정된 최신 기록을 다음 Revision으로 저장한다.
         await saveLogRevision({
           userId: user.id,
           dailyLogId: savedLog.id,
@@ -186,10 +177,9 @@ export default function Home() {
         });
       }
 
-      // 기록이 변경됐으므로 기존 AI 분석 결과를 삭제한다.
       await deleteTodayAnalysis(user.id);
       await deleteTodayMeaningGrowthAnalysis(user.id);
-      await deleteTodayTodaysReflection(user.id);      
+      await deleteTodayTodaysReflection(user.id);
 
       await refreshLogs(user.id);
 
@@ -209,20 +199,15 @@ export default function Home() {
   if (!user) {
     return (
       <LoginForm
-        email={email}
-        password={password}
         message={message}
-        onEmailChange={setEmail}
-        onPasswordChange={setPassword}
-        onSignUp={handleSignUp}
-        onLogin={handleLogin}
+        onGoogleLogin={handleGoogleLogin}
       />
     );
   }
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-8">
+      <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-lg">
         <DailyLogForm
           content={content}
           message={message}
@@ -232,11 +217,6 @@ export default function Home() {
         />
 
         <RecentLogs logs={logs} />
-
-        <TodaysReflectionCard
-          userId={user.id}
-          refreshKey={todaysReflectionVersion}
-        />
 
         <AIInsightCard
           userId={user.id}
@@ -258,8 +238,13 @@ export default function Home() {
           refreshKey={analysisVersion}
         />
 
+        <TodaysReflectionCard
+          userId={user.id}
+          refreshKey={todaysReflectionVersion}
+        />  
+
         <MeaningGrowthCard
-          userId={user.id}          
+          userId={user.id}
           refreshKey={meaningGrowthVersion}
         />
 
@@ -274,7 +259,6 @@ export default function Home() {
           userId={user.id}
           refreshKey={timelineVersion}
         />
-
       </div>
     </main>
   );
