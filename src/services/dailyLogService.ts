@@ -27,7 +27,7 @@ export const loadRecentLogs = async (
 ): Promise<DailyLog[]> => {
   const { data, error } = await supabase
     .from("daily_logs")
-    .select("id, log_date, content")
+    .select("id, user_id, log_date, content")
     .eq("user_id", userId)
     .order("log_date", { ascending: false })
     .limit(5);
@@ -46,7 +46,7 @@ export const loadTodayLogRow = async (
 
   const { data, error } = await supabase
     .from("daily_logs")
-    .select("id, log_date, content")
+    .select("id, user_id, log_date, content")
     .eq("user_id", userId)
     .eq("log_date", today)
     .maybeSingle();
@@ -77,7 +77,7 @@ export const saveTodayLog = async (
         onConflict: "user_id,log_date",
       }
     )
-    .select("id, log_date, content")
+    .select("id, user_id, log_date, content")
     .single();
 
   if (error) {
