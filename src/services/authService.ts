@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 export const login = async () => {
   const redirectTo =
     typeof window !== "undefined"
-      ? window.location.origin
+      ? `${window.location.origin}/app`
       : undefined;
 
   const { data, error } = await supabase.auth.signInWithOAuth({
