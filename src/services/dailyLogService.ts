@@ -2,7 +2,9 @@ import { supabase } from "@/lib/supabase";
 import type { DailyLog } from "@/types/dailyLog";
 
 export const getToday = () => {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+  }).format(new Date());
 };
 
 export const loadTodayLog = async (userId: string) => {
