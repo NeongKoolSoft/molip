@@ -3,8 +3,8 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Molip",
-  description: "당신은 무엇에 반복적으로 반응합니까?",
+  title: "Molip | AI 기반 자기이해 서비스",
+  description: "당신은 무엇에 반복적으로 반응합니까? Molip은 매일의 기록을 분석해 반복되는 반응과 몰입의 신호를 발견하도록 돕는 AI 기반 자기이해 서비스입니다.",
   verification: {
     google: "5oDKA3O3Do8M1fi9bM8PunDWLsP0gnsBMmXRgkByem4",
   },
