@@ -5,6 +5,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Molip",
   description: "당신은 무엇에 반복적으로 반응합니까?",
+  verification: {
+    google: "5oDKA3O3Do8M1fi9bM8PunDWLsP0gnsBMmXRgkByem4",
+  },
 };
 
 export default function RootLayout({
