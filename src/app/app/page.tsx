@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 
 import type { DailyLog } from "@/types/dailyLog";
@@ -12,11 +12,7 @@ import {
   saveTodayLog,
 } from "@/services/dailyLogService";
 
-import {
-  login,
-  logout,
-  getCurrentUser,
-} from "@/services/authService";
+import { login, logout, getCurrentUser } from "@/services/authService";
 
 import { deleteTodayAnalysis } from "@/services/aiAnalysisService";
 import { saveLogRevision } from "@/services/logRevisionService";
@@ -36,25 +32,54 @@ import MeaningGrowthCard from "@/components/MeaningGrowthCard";
 import ImmersionDiscoveryCard from "@/components/ImmersionDiscoveryCard";
 import TodaysReflectionCard from "@/components/TodaysReflectionCard";
 
+function getLocalDateKey(): string {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
 
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
   const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [isInitialContentLoaded, setIsInitialContentLoaded] = useState(false);
 
   const [analysisVersion, setAnalysisVersion] = useState(0);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const [meaningGrowthVersion, setMeaningGrowthVersion] = useState(0);
   const [todaysReflectionVersion, setTodaysReflectionVersion] = useState(0);
 
+  const draftKey = useMemo(() => {
+    if (!user) {
+      return null;
+    }
+
+    return `molip_daily_log_draft_${user.id}_${getLocalDateKey()}`;
+  }, [user]);
+
+  
   const refreshLogs = async (userId: string) => {
     const todayContent = await loadTodayLog(userId);
     const recentLogs = await loadRecentLogs(userId);
 
-    setContent(todayContent);
+    const currentDraftKey = `molip_daily_log_draft_${userId}_${getLocalDateKey()}`;
+    const savedDraft = window.localStorage.getItem(currentDraftKey);
+
+    if (savedDraft !== null) {
+      setContent(savedDraft);
+    } else {
+      setContent(todayContent);
+    }
+
     setLogs(recentLogs);
-  };
+    setIsInitialContentLoaded(true);
+  };  
 
   useEffect(() => {
     let isMounted = true;
@@ -65,12 +90,33 @@ export default function Home() {
       }
 
       setUser(currentUser);
+      setIsInitialContentLoaded(false);
 
       if (currentUser) {
-        await refreshLogs(currentUser.id);
+        const todayContent = await loadTodayLog(currentUser.id);
+        const recentLogs = await loadRecentLogs(currentUser.id);
+
+        const currentDraftKey = `molip_daily_log_draft_${
+          currentUser.id
+        }_${getLocalDateKey()}`;
+
+        const savedDraft =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem(currentDraftKey)
+            : null;
+
+        if (savedDraft !== null) {
+          setContent(savedDraft);
+        } else {
+          setContent(todayContent);
+        }        
+
+        setLogs(recentLogs);
+        setIsInitialContentLoaded(true);
       } else {
         setContent("");
         setLogs([]);
+        setIsInitialContentLoaded(false);
       }
     };
 
@@ -101,6 +147,18 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!draftKey || !isInitialContentLoaded) {
+      return;
+    }
+
+    if (content.trim()) {
+      window.localStorage.setItem(draftKey, content);
+    } else {
+      window.localStorage.removeItem(draftKey);
+    }
+  }, [content, draftKey, isInitialContentLoaded]);
+
   const handleGoogleLogin = async () => {
     setMessage("");
 
@@ -120,6 +178,7 @@ export default function Home() {
       setContent("");
       setLogs([]);
       setMessage("로그아웃되었습니다.");
+      setIsInitialContentLoaded(false);
     } catch (error) {
       console.error(error);
       setMessage("로그아웃 중 오류가 발생했습니다.");
@@ -181,6 +240,12 @@ export default function Home() {
       await deleteTodayMeaningGrowthAnalysis(user.id);
       await deleteTodayTodaysReflection(user.id);
 
+      setIsInitialContentLoaded(false);
+      
+      if (draftKey) {
+        window.localStorage.removeItem(draftKey);
+      }
+
       await refreshLogs(user.id);
 
       setAnalysisVersion((prev) => prev + 1);
@@ -241,7 +306,7 @@ export default function Home() {
         <TodaysReflectionCard
           userId={user.id}
           refreshKey={todaysReflectionVersion}
-        />  
+        />
 
         <MeaningGrowthCard
           userId={user.id}

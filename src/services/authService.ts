@@ -1,12 +1,12 @@
 import { supabase } from "@/lib/supabase";
 
-export const login = async () => {
+export async function login() {
   const redirectTo =
     typeof window !== "undefined"
       ? `${window.location.origin}/app`
       : undefined;
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
@@ -16,9 +16,7 @@ export const login = async () => {
   if (error) {
     throw error;
   }
-
-  return data;
-};
+}
 
 export const logout = async () => {
   const { error } = await supabase.auth.signOut();
