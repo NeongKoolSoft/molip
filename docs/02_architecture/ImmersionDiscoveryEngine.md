@@ -692,3 +692,107 @@ Molip는
 그 이후의 선택은
 
 항상 사용자의 몫이다.
+
+---
+
+# Engine Output Schema
+
+Immersion Discovery Engine은
+최종적으로 아래와 같은 구조를 생성한다.
+
+```json
+{
+  "target": "Molip 개발",
+  "signal_level": "growing",
+  "immersion_score": 0.82,
+  "confidence": 0.91,
+  "evidence": [
+    "최근 30일 동안 17회 등장",
+    "Reflection 이후 의미가 확장됨",
+    "긍정적인 에너지와 함께 반복됨"
+  ],
+  "summary": "최근 여러 기록에서 반복적으로 등장하며 의미가 점차 확장되고 있습니다.",
+  "reflection_question": "왜 이 활동은 당신에게 계속 중요하게 남을까요?"
+}
+
+```
+
+---
+
+# Engine to UI Mapping
+
+Engine이 생성한 결과는
+Immersion Discovery Card에서 다음과 같이 표현된다.
+
+Engine
+
+↓
+
+Target
+
+↓
+
+Evidence
+
+↓
+
+Summary
+
+↓
+
+Reflection Question
+
+# Confidence
+
+Confidence는
+
+AI 추출 결과의 신뢰도와
+
+증거의 충분함을 나타낸다.
+
+Confidence가 낮다면
+
+Engine은
+
+몰입이라고 적극적으로 표현하지 않는다.
+
+# Time Window
+
+V1 기본 분석 범위
+
+30일
+
+추가 후보
+
+7일
+
+14일
+
+90일
+
+사용자가 선택할 수 있도록
+확장 가능
+
+# Engine Evolution
+
+V1
+
+반복 빈도
+
+↓
+
+V2
+
+반복 + Meaning Growth
+
+↓
+
+V3
+
+장기 패턴
+
+↓
+
+V4
+
+Life Pattern
