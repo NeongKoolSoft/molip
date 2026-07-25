@@ -260,7 +260,7 @@ export default function AIInsightCard({
     <section className="mt-10 rounded-3xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <h2 className="text-2xl font-bold text-gray-950">
-          AI가 발견한 나의 변화
+          기록에서 발견한 나의 변화
         </h2>
 
         <span
@@ -287,7 +287,7 @@ export default function AIInsightCard({
       >
         {loading
           ? "분석 중..."
-          : "✨ AI 분석하기"}
+          : "✨ 변화 발견하기"}
       </button>
 
       {message && (
