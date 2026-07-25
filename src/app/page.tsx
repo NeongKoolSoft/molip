@@ -91,7 +91,7 @@ export default function LandingPage() {
 
         <div className="relative mx-auto flex min-h-[760px] w-full max-w-6xl flex-col items-center justify-center px-6 py-24 text-center">
           <p className="mb-6 inline-flex rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm">
-            AI 기반 자기이해 서비스
+            자기이해 기록 서비스
           </p>
 
           <h1 className="max-w-4xl break-keep text-4xl font-bold leading-tight tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
