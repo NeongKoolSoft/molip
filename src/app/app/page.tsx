@@ -29,7 +29,7 @@ import ReactionTrendCard from "@/components/ReactionTrendCard";
 import ReactionTimelineCard from "@/components/ReactionTimelineCard";
 import GrowthSignalCard from "@/components/GrowthSignalCard";
 import MeaningGrowthCard from "@/components/MeaningGrowthCard";
-import ImmersionDiscoveryCard from "@/components/ImmersionDiscoveryCard";
+import ImmersionDiscoveryV2Card from "@/components/ImmersionDiscoveryV2Card";
 import TodaysReflectionCard from "@/components/TodaysReflectionCard";
 
 function getLocalDateKey(): string {
@@ -48,12 +48,14 @@ export default function Home() {
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
   const [logs, setLogs] = useState<DailyLog[]>([]);
-  const [isInitialContentLoaded, setIsInitialContentLoaded] = useState(false);
+  const [isInitialContentLoaded, setIsInitialContentLoaded] =
+    useState(false);
 
   const [analysisVersion, setAnalysisVersion] = useState(0);
   const [timelineVersion, setTimelineVersion] = useState(0);
   const [meaningGrowthVersion, setMeaningGrowthVersion] = useState(0);
-  const [todaysReflectionVersion, setTodaysReflectionVersion] = useState(0);
+  const [todaysReflectionVersion, setTodaysReflectionVersion] =
+    useState(0);
 
   const draftKey = useMemo(() => {
     if (!user) {
@@ -63,7 +65,6 @@ export default function Home() {
     return `molip_daily_log_draft_${user.id}_${getLocalDateKey()}`;
   }, [user]);
 
-  
   const refreshLogs = async (userId: string) => {
     const todayContent = await loadTodayLog(userId);
     const recentLogs = await loadRecentLogs(userId);
@@ -79,7 +80,7 @@ export default function Home() {
 
     setLogs(recentLogs);
     setIsInitialContentLoaded(true);
-  };  
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -109,7 +110,7 @@ export default function Home() {
           setContent(savedDraft);
         } else {
           setContent(todayContent);
-        }        
+        }
 
         setLogs(recentLogs);
         setIsInitialContentLoaded(true);
@@ -241,14 +242,14 @@ export default function Home() {
       await deleteTodayTodaysReflection(user.id);
 
       setIsInitialContentLoaded(false);
-      
+
       if (draftKey) {
         window.localStorage.removeItem(draftKey);
       }
 
       await refreshLogs(user.id);
 
-      setAnalysisVersion((prev) => prev + 1);
+      setAnalysisVersion((previous) => previous + 1);
 
       setMessage(
         previousLog
@@ -271,7 +272,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50">
+    <main className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-lg">
         <DailyLogForm
           content={content}
@@ -288,13 +289,13 @@ export default function Home() {
           logs={logs}
           refreshKey={analysisVersion}
           onAnalysisComplete={() =>
-            setTimelineVersion((prev) => prev + 1)
+            setTimelineVersion((previous) => previous + 1)
           }
           onMeaningGrowthComplete={() =>
-            setMeaningGrowthVersion((prev) => prev + 1)
+            setMeaningGrowthVersion((previous) => previous + 1)
           }
           onTodaysReflectionComplete={() =>
-            setTodaysReflectionVersion((prev) => prev + 1)
+            setTodaysReflectionVersion((previous) => previous + 1)
           }
         />
 
@@ -313,7 +314,7 @@ export default function Home() {
           refreshKey={meaningGrowthVersion}
         />
 
-        <ImmersionDiscoveryCard
+        <ImmersionDiscoveryV2Card
           userId={user.id}
           refreshKey={analysisVersion}
         />
