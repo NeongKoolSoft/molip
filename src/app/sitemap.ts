@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const baseUrl = "https://molip-mu.vercel.app";
+const baseUrl = "https://molip.help";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
