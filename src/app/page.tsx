@@ -127,7 +127,7 @@ export default function LandingPage() {
           </div>
 
           <p className="mt-6 text-sm text-slate-400">
-            하루 1분 기록 · AI 분석 · 반복 반응 발견
+            하루 1분 기록 · 반복 반응 발견
           </p>
         </div>
       </section>
