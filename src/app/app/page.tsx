@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import type { UserPlan } from "@/types/userPlan";
+import { loadUserPlan } from "@/services/userPlanService";
 
 import type { DailyLog } from "@/types/dailyLog";
 
@@ -31,6 +33,7 @@ import GrowthSignalCard from "@/components/GrowthSignalCard";
 import MeaningGrowthCard from "@/components/MeaningGrowthCard";
 import ImmersionDiscoveryV2Card from "@/components/ImmersionDiscoveryV2Card";
 import TodaysReflectionCard from "@/components/TodaysReflectionCard";
+import WeeklyReportCard from "@/components/WeeklyReportCard";
 
 function getLocalDateKey(): string {
   const now = new Date();
@@ -44,6 +47,7 @@ function getLocalDateKey(): string {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const [userPlan, setUserPlan] = useState<UserPlan>("free");
 
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
@@ -56,6 +60,7 @@ export default function Home() {
   const [meaningGrowthVersion, setMeaningGrowthVersion] = useState(0);
   const [todaysReflectionVersion, setTodaysReflectionVersion] =
     useState(0);
+  const [weeklyReportVersion, setWeeklyReportVersion] = useState(0);
 
   const draftKey = useMemo(() => {
     if (!user) {
@@ -94,8 +99,17 @@ export default function Home() {
       setIsInitialContentLoaded(false);
 
       if (currentUser) {
-        const todayContent = await loadTodayLog(currentUser.id);
-        const recentLogs = await loadRecentLogs(currentUser.id);
+        const [todayContent, recentLogs, plan] = await Promise.all([
+          loadTodayLog(currentUser.id),
+          loadRecentLogs(currentUser.id),
+          loadUserPlan(currentUser.id),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setUserPlan(plan);
 
         const currentDraftKey = `molip_daily_log_draft_${
           currentUser.id
@@ -176,6 +190,7 @@ export default function Home() {
       await logout();
 
       setUser(null);
+      setUserPlan("free");
       setContent("");
       setLogs([]);
       setMessage("로그아웃되었습니다.");
@@ -288,9 +303,10 @@ export default function Home() {
           userId={user.id}
           logs={logs}
           refreshKey={analysisVersion}
-          onAnalysisComplete={() =>
-            setTimelineVersion((previous) => previous + 1)
-          }
+          onAnalysisComplete={() => {
+            setTimelineVersion((prev) => prev + 1);
+            setWeeklyReportVersion((prev) => prev + 1);
+          }}
           onMeaningGrowthComplete={() =>
             setMeaningGrowthVersion((previous) => previous + 1)
           }
@@ -317,6 +333,12 @@ export default function Home() {
         <ImmersionDiscoveryV2Card
           userId={user.id}
           refreshKey={analysisVersion}
+        />
+
+        <WeeklyReportCard
+          userId={user.id}
+          plan={userPlan}
+          refreshKey={weeklyReportVersion}
         />
 
         <ReactionTrendCard userId={user.id} />
