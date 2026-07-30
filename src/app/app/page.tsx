@@ -76,7 +76,7 @@ function trackGoogleAdsSignup(currentUser: User) {
   // 계정 생성 직후의 최초 로그인만 가입으로 처리
   const isNewSignup =
     accountAge >= 0 &&
-    accountAge < 30 * 60 * 1000 &&
+    accountAge < 2 * 60 * 60 * 1000 &&
     creationLoginGap < 5 * 60 * 1000;
 
   console.log("isNewSignup", isNewSignup);
