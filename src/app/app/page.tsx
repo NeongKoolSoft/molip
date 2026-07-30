@@ -58,6 +58,9 @@ function trackGoogleAdsSignup(currentUser: User) {
 
   const trackedKey = `molip_google_ads_signup_tracked_${currentUser.id}`;
 
+  console.log("trackedKey", trackedKey);
+  console.log("trackedValue", window.localStorage.getItem(trackedKey));
+
   if (window.localStorage.getItem(trackedKey)) {
     return;
   }
