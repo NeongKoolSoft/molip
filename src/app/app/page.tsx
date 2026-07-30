@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import type { User } from "@supabase/supabase-js";
 import type { UserPlan } from "@/types/userPlan";
-import { loadUserPlan } from "@/services/userPlanService";
-
 import type { DailyLog } from "@/types/dailyLog";
 
 import {
@@ -14,8 +18,13 @@ import {
   saveTodayLog,
 } from "@/services/dailyLogService";
 
-import { login, logout, getCurrentUser } from "@/services/authService";
+import {
+  login,
+  logout,
+  getCurrentUser,
+} from "@/services/authService";
 
+import { loadUserPlan } from "@/services/userPlanService";
 import { deleteTodayAnalysis } from "@/services/aiAnalysisService";
 import { saveLogRevision } from "@/services/logRevisionService";
 import { deleteTodayMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
@@ -27,7 +36,7 @@ import LoginForm from "@/components/LoginForm";
 import DailyLogForm from "@/components/DailyLogForm";
 import RecentLogs from "@/components/RecentLogs";
 import AIInsightCard from "@/components/AIInsightCard";
-//import ReflectionQuestionDevCard from "@/components/ReflectionQuestionDevCard";
+// import ReflectionQuestionDevCard from "@/components/ReflectionQuestionDevCard";
 import ReactionTrendCard from "@/components/ReactionTrendCard";
 import ReactionTimelineCard from "@/components/ReactionTimelineCard";
 import GrowthSignalCard from "@/components/GrowthSignalCard";
@@ -46,81 +55,183 @@ declare global {
   }
 }
 
-function trackGoogleAdsSignup(currentUser: User) {
+function trackGoogleAdsSignup(
+  currentUser: User
+) {
+  console.log(
+    "trackGoogleAdsSignup 호출"
+  );
 
-  console.log("trackGoogleAdsSignup 호출");
-  console.log("currentUser", currentUser);
-  console.log("gtag", typeof window.gtag);
+  console.log(
+    "currentUser",
+    currentUser
+  );
 
-  if (typeof window === "undefined" || !window.gtag) {
+  console.log(
+    "gtag",
+    typeof window.gtag
+  );
+
+  if (
+    typeof window === "undefined" ||
+    !window.gtag
+  ) {
     return;
   }
 
-  const trackedKey = `molip_google_ads_signup_tracked_${currentUser.id}`;
+  const trackedKey =
+    `molip_google_ads_signup_tracked_${currentUser.id}`;
 
-  console.log("trackedKey", trackedKey);
-  console.log("trackedValue", window.localStorage.getItem(trackedKey));
+  console.log(
+    "trackedKey",
+    trackedKey
+  );
 
-  if (window.localStorage.getItem(trackedKey)) {
+  console.log(
+    "trackedValue",
+    window.localStorage.getItem(
+      trackedKey
+    )
+  );
+
+  if (
+    window.localStorage.getItem(
+      trackedKey
+    )
+  ) {
     return;
   }
 
-  const createdAt = new Date(currentUser.created_at).getTime();
-  const lastSignInAt = currentUser.last_sign_in_at
-    ? new Date(currentUser.last_sign_in_at).getTime()
-    : createdAt;
+  const createdAt = new Date(
+    currentUser.created_at
+  ).getTime();
 
-  const accountAge = Date.now() - createdAt;
-  const creationLoginGap = Math.abs(lastSignInAt - createdAt);
+  const lastSignInAt =
+    currentUser.last_sign_in_at
+      ? new Date(
+          currentUser.last_sign_in_at
+        ).getTime()
+      : createdAt;
 
-  // 계정 생성 직후의 최초 로그인만 가입으로 처리
+  const accountAge =
+    Date.now() - createdAt;
+
+  const creationLoginGap =
+    Math.abs(
+      lastSignInAt - createdAt
+    );
+
+  // 계정 생성 직후의 최초 로그인만
+  // 가입으로 처리
   const isNewSignup =
     accountAge >= 0 &&
-    accountAge < 2 * 60 * 60 * 1000 &&
-    creationLoginGap < 5 * 60 * 1000;
+    accountAge <
+      2 * 60 * 60 * 1000 &&
+    creationLoginGap <
+      5 * 60 * 1000;
 
-  console.log("isNewSignup", isNewSignup);
+  console.log(
+    "isNewSignup",
+    isNewSignup
+  );
 
   if (!isNewSignup) {
     return;
   }
 
-  console.log("conversion event 전송");
-  
-  window.gtag("event", "conversion", {
-    send_to: "AW-17811031025/IBnsCIXd_dgcEPGH-6xC",
-  });
+  console.log(
+    "conversion event 전송"
+  );
 
-  window.localStorage.setItem(trackedKey, new Date().toISOString());
-  
+  window.gtag(
+    "event",
+    "conversion",
+    {
+      send_to:
+        "AW-17811031025/IBnsCIXd_dgcEPGH-6xC",
+    }
+  );
+
+  window.localStorage.setItem(
+    trackedKey,
+    new Date().toISOString()
+  );
 }
 
 function getLocalDateKey(): string {
   const now = new Date();
 
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+  const year =
+    now.getFullYear();
+
+  const month = String(
+    now.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    now.getDate()
+  ).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
-  const [userPlan, setUserPlan] = useState<UserPlan>("free");
+  const [user, setUser] =
+    useState<User | null>(null);
 
-  const [content, setContent] = useState("");
-  const [message, setMessage] = useState("");
-  const [logs, setLogs] = useState<DailyLog[]>([]);
-  const [isInitialContentLoaded, setIsInitialContentLoaded] =
-    useState(false);
+  const [userPlan, setUserPlan] =
+    useState<UserPlan>("free");
 
-  const [analysisVersion, setAnalysisVersion] = useState(0);
-  const [timelineVersion, setTimelineVersion] = useState(0);
-  const [meaningGrowthVersion, setMeaningGrowthVersion] = useState(0);
-  const [todaysReflectionVersion, setTodaysReflectionVersion] =
-    useState(0);
-  const [weeklyReportVersion, setWeeklyReportVersion] = useState(0);
+  const [content, setContent] =
+    useState("");
+
+  const [message, setMessage] =
+    useState("");
+
+  const [logs, setLogs] =
+    useState<DailyLog[]>([]);
+
+  const [
+    isInitialContentLoaded,
+    setIsInitialContentLoaded,
+  ] = useState(false);
+
+  const [
+    activeReflectionQuestion,
+    setActiveReflectionQuestion,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    analysisVersion,
+    setAnalysisVersion,
+  ] = useState(0);
+
+  const [
+    timelineVersion,
+    setTimelineVersion,
+  ] = useState(0);
+
+  const [
+    meaningGrowthVersion,
+    setMeaningGrowthVersion,
+  ] = useState(0);
+
+  const [
+    todaysReflectionVersion,
+    setTodaysReflectionVersion,
+  ] = useState(0);
+
+  const [
+    weeklyReportVersion,
+    setWeeklyReportVersion,
+  ] = useState(0);
+
+  const dailyLogFormRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
 
   const draftKey = useMemo(() => {
     if (!user) {
@@ -130,12 +241,22 @@ export default function Home() {
     return `molip_daily_log_draft_${user.id}_${getLocalDateKey()}`;
   }, [user]);
 
-  const refreshLogs = async (userId: string) => {
-    const todayContent = await loadTodayLog(userId);
-    const recentLogs = await loadRecentLogs(userId);
+  const refreshLogs = async (
+    userId: string
+  ) => {
+    const todayContent =
+      await loadTodayLog(userId);
 
-    const currentDraftKey = `molip_daily_log_draft_${userId}_${getLocalDateKey()}`;
-    const savedDraft = window.localStorage.getItem(currentDraftKey);
+    const recentLogs =
+      await loadRecentLogs(userId);
+
+    const currentDraftKey =
+      `molip_daily_log_draft_${userId}_${getLocalDateKey()}`;
+
+    const savedDraft =
+      window.localStorage.getItem(
+        currentDraftKey
+      );
 
     if (savedDraft !== null) {
       setContent(savedDraft);
@@ -150,21 +271,38 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true;
 
-    const applyUser = async (currentUser: User | null) => {
+    const applyUser = async (
+      currentUser: User | null
+    ) => {
       if (!isMounted) {
         return;
       }
 
       setUser(currentUser);
       setIsInitialContentLoaded(false);
+      setActiveReflectionQuestion(
+        null
+      );
 
       if (currentUser) {
-        trackGoogleAdsSignup(currentUser);
+        trackGoogleAdsSignup(
+          currentUser
+        );
 
-      const [todayContent, recentLogs, plan] = await Promise.all([
-          loadTodayLog(currentUser.id),
-          loadRecentLogs(currentUser.id),
-          loadUserPlan(currentUser.id),
+        const [
+          todayContent,
+          recentLogs,
+          plan,
+        ] = await Promise.all([
+          loadTodayLog(
+            currentUser.id
+          ),
+          loadRecentLogs(
+            currentUser.id
+          ),
+          loadUserPlan(
+            currentUser.id
+          ),
         ]);
 
         if (!isMounted) {
@@ -173,13 +311,15 @@ export default function Home() {
 
         setUserPlan(plan);
 
-        const currentDraftKey = `molip_daily_log_draft_${
-          currentUser.id
-        }_${getLocalDateKey()}`;
+        const currentDraftKey =
+          `molip_daily_log_draft_${currentUser.id}_${getLocalDateKey()}`;
 
         const savedDraft =
-          typeof window !== "undefined"
-            ? window.localStorage.getItem(currentDraftKey)
+          typeof window !==
+          "undefined"
+            ? window.localStorage.getItem(
+                currentDraftKey
+              )
             : null;
 
         if (savedDraft !== null) {
@@ -189,34 +329,54 @@ export default function Home() {
         }
 
         setLogs(recentLogs);
-        setIsInitialContentLoaded(true);
+        setIsInitialContentLoaded(
+          true
+        );
       } else {
         setContent("");
         setLogs([]);
-        setIsInitialContentLoaded(false);
+        setIsInitialContentLoaded(
+          false
+        );
       }
     };
 
-    const loadInitialUser = async () => {
-      try {
-        const currentUser = await getCurrentUser();
-        await applyUser(currentUser);
-      } catch (error) {
-        console.error("초기 로그인 상태 확인 실패:", error);
-      }
-    };
+    const loadInitialUser =
+      async () => {
+        try {
+          const currentUser =
+            await getCurrentUser();
+
+          await applyUser(
+            currentUser
+          );
+        } catch (error) {
+          console.error(
+            "초기 로그인 상태 확인 실패:",
+            error
+          );
+        }
+      };
 
     loadInitialUser();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      window.setTimeout(() => {
-        applyUser(session?.user ?? null).catch((error) => {
-          console.error("로그인 상태 반영 실패:", error);
-        });
-      }, 0);
-    });
+    } =
+      supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          window.setTimeout(() => {
+            applyUser(
+              session?.user ?? null
+            ).catch((error) => {
+              console.error(
+                "로그인 상태 반영 실패:",
+                error
+              );
+            });
+          }, 0);
+        }
+      );
 
     return () => {
       isMounted = false;
@@ -225,117 +385,239 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!draftKey || !isInitialContentLoaded) {
+    if (
+      !draftKey ||
+      !isInitialContentLoaded
+    ) {
       return;
     }
 
     if (content.trim()) {
-      window.localStorage.setItem(draftKey, content);
+      window.localStorage.setItem(
+        draftKey,
+        content
+      );
     } else {
-      window.localStorage.removeItem(draftKey);
+      window.localStorage.removeItem(
+        draftKey
+      );
     }
-  }, [content, draftKey, isInitialContentLoaded]);
+  }, [
+    content,
+    draftKey,
+    isInitialContentLoaded,
+  ]);
 
-  const handleGoogleLogin = async () => {
-    setMessage("");
+  const handleGoogleLogin =
+    async () => {
+      setMessage("");
 
-    try {
-      await login();
-    } catch (error) {
-      console.error(error);
-      setMessage("Google 로그인 중 오류가 발생했습니다.");
-    }
-  };
+      try {
+        await login();
+      } catch (error) {
+        console.error(error);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
+        setMessage(
+          "Google 로그인 중 오류가 발생했습니다."
+        );
+      }
+    };
 
-      setUser(null);
-      setUserPlan("free");
-      setContent("");
-      setLogs([]);
-      setMessage("로그아웃되었습니다.");
-      setIsInitialContentLoaded(false);
-    } catch (error) {
-      console.error(error);
-      setMessage("로그아웃 중 오류가 발생했습니다.");
-    }
+  const handleLogout =
+    async () => {
+      try {
+        await logout();
+
+        setUser(null);
+        setUserPlan("free");
+        setContent("");
+        setLogs([]);
+        setMessage(
+          "로그아웃되었습니다."
+        );
+
+        setActiveReflectionQuestion(
+          null
+        );
+
+        setIsInitialContentLoaded(
+          false
+        );
+      } catch (error) {
+        console.error(error);
+
+        setMessage(
+          "로그아웃 중 오류가 발생했습니다."
+        );
+      }
+    };
+
+  const handleContinueReflection = (
+    question: string
+  ) => {
+    setActiveReflectionQuestion(
+      question
+    );
+
+    setMessage(
+      "질문을 보며 떠오른 생각을 오늘 기록에 덧붙여 보세요."
+    );
+
+    window.requestAnimationFrame(
+      () => {
+        dailyLogFormRef.current?.scrollIntoView(
+          {
+            behavior: "smooth",
+            block: "start",
+          }
+        );
+
+        window.setTimeout(() => {
+          const input =
+            dailyLogFormRef.current?.querySelector<
+              HTMLTextAreaElement
+            >("textarea");
+
+          input?.focus();
+
+          if (input) {
+            const cursorPosition =
+              input.value.length;
+
+            input.setSelectionRange(
+              cursorPosition,
+              cursorPosition
+            );
+          }
+        }, 500);
+      }
+    );
   };
 
   const handleSave = async () => {
     setMessage("");
 
     if (!user) {
-      setMessage("로그인이 필요합니다.");
+      setMessage(
+        "로그인이 필요합니다."
+      );
+
       return;
     }
 
-    const trimmedContent = content.trim();
+    const trimmedContent =
+      content.trim();
 
     if (!trimmedContent) {
-      setMessage("기록을 입력해 주세요.");
+      setMessage(
+        "기록을 입력해 주세요."
+      );
+
       return;
     }
 
     try {
-      const previousLog = await loadTodayLogRow(user.id);
+      const previousLog =
+        await loadTodayLogRow(
+          user.id
+        );
 
-      if (previousLog?.content.trim() === trimmedContent) {
-        setMessage("변경된 내용이 없습니다.");
+      if (
+        previousLog?.content.trim() ===
+        trimmedContent
+      ) {
+        setMessage(
+          "변경된 내용이 없습니다."
+        );
+
         return;
       }
 
-      const savedLog = await saveTodayLog(user.id, trimmedContent);
+      const savedLog =
+        await saveTodayLog(
+          user.id,
+          trimmedContent
+        );
 
       if (!previousLog) {
         await saveLogRevision({
           userId: user.id,
-          dailyLogId: savedLog.id,
-          logDate: savedLog.log_date,
-          content: savedLog.content,
+          dailyLogId:
+            savedLog.id,
+          logDate:
+            savedLog.log_date,
+          content:
+            savedLog.content,
           source: "initial",
         });
       } else {
         await saveLogRevision({
           userId: user.id,
-          dailyLogId: previousLog.id,
-          logDate: previousLog.log_date,
-          content: previousLog.content,
+          dailyLogId:
+            previousLog.id,
+          logDate:
+            previousLog.log_date,
+          content:
+            previousLog.content,
           source: "initial",
         });
 
         await saveLogRevision({
           userId: user.id,
-          dailyLogId: savedLog.id,
-          logDate: savedLog.log_date,
-          content: savedLog.content,
+          dailyLogId:
+            savedLog.id,
+          logDate:
+            savedLog.log_date,
+          content:
+            savedLog.content,
           source: "manual_edit",
         });
       }
 
-      await deleteTodayAnalysis(user.id);
-      await deleteTodayMeaningGrowthAnalysis(user.id);
-      await deleteTodayTodaysReflection(user.id);
+      await deleteTodayAnalysis(
+        user.id
+      );
 
-      setIsInitialContentLoaded(false);
+      await deleteTodayMeaningGrowthAnalysis(
+        user.id
+      );
+
+      await deleteTodayTodaysReflection(
+        user.id
+      );
+
+      setIsInitialContentLoaded(
+        false
+      );
 
       if (draftKey) {
-        window.localStorage.removeItem(draftKey);
+        window.localStorage.removeItem(
+          draftKey
+        );
       }
 
       await refreshLogs(user.id);
 
-      setAnalysisVersion((previous) => previous + 1);
+      setAnalysisVersion(
+        (previous) =>
+          previous + 1
+      );
+
+      setActiveReflectionQuestion(
+        null
+      );
 
       setMessage(
         previousLog
-          ? "수정된 기록이 저장되었습니다. AI 분석을 다시 실행해 주세요."
+          ? "이어 쓴 기록이 저장되었습니다. AI 분석을 다시 실행해 주세요."
           : "오늘의 기록이 저장되었습니다. AI 분석을 실행해 주세요."
       );
     } catch (error) {
       console.error(error);
-      setMessage("저장 중 오류가 발생했습니다.");
+
+      setMessage(
+        "저장 중 오류가 발생했습니다."
+      );
     }
   };
 
@@ -343,7 +625,9 @@ export default function Home() {
     return (
       <LoginForm
         message={message}
-        onGoogleLogin={handleGoogleLogin}
+        onGoogleLogin={
+          handleGoogleLogin
+        }
       />
     );
   }
@@ -351,69 +635,139 @@ export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-lg">
-        <DailyLogForm
-          content={content}
-          message={message}
-          onContentChange={setContent}
-          onSave={handleSave}
-          onLogout={handleLogout}
-        />
+        <div
+          ref={dailyLogFormRef}
+          className="scroll-mt-6"
+        >
+          {activeReflectionQuestion && (
+            <div className="mb-5 rounded-2xl border-2 border-violet-300 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 text-lg shadow-sm">
+                  🤔
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-violet-700">
+                    질문에 답하며
+                    기록을 이어보세요
+                  </p>
+
+                  <p className="mt-3 break-keep text-base font-bold leading-7 text-gray-950">
+                    {
+                      activeReflectionQuestion
+                    }
+                  </p>
+
+                  <p className="mt-3 break-keep text-sm leading-6 text-gray-600">
+                    기존 기록의 마지막에
+                    떠오른 생각을 덧붙인 후
+                    저장해 주세요.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DailyLogForm
+            content={content}
+            message={message}
+            onContentChange={
+              setContent
+            }
+            onSave={handleSave}
+            onLogout={
+              handleLogout
+            }
+          />
+        </div>
 
         <RecentLogs logs={logs} />
 
         <AIInsightCard
           userId={user.id}
           logs={logs}
-          refreshKey={analysisVersion}
+          refreshKey={
+            analysisVersion
+          }
           onAnalysisComplete={() => {
-            setTimelineVersion((prev) => prev + 1);
-            setWeeklyReportVersion((prev) => prev + 1);
+            setTimelineVersion(
+              (previous) =>
+                previous + 1
+            );
+
+            setWeeklyReportVersion(
+              (previous) =>
+                previous + 1
+            );
           }}
           onMeaningGrowthComplete={() =>
-            setMeaningGrowthVersion((previous) => previous + 1)
+            setMeaningGrowthVersion(
+              (previous) =>
+                previous + 1
+            )
           }
           onTodaysReflectionComplete={() =>
-            setTodaysReflectionVersion((previous) => previous + 1)
+            setTodaysReflectionVersion(
+              (previous) =>
+                previous + 1
+            )
+          }
+          onContinueReflection={
+            handleContinueReflection
           }
         />
 
-{/*
+        {/*
         <ReflectionQuestionDevCard
           userId={user.id}
         />
-*/}
+        */}
 
         <GrowthSignalCard
           userId={user.id}
-          refreshKey={analysisVersion}
+          refreshKey={
+            analysisVersion
+          }
         />
 
         <TodaysReflectionCard
           userId={user.id}
-          refreshKey={todaysReflectionVersion}
+          refreshKey={
+            todaysReflectionVersion
+          }
         />
 
         <MeaningGrowthCard
           userId={user.id}
-          refreshKey={meaningGrowthVersion}
+          refreshKey={
+            meaningGrowthVersion
+          }
         />
 
         <ImmersionDiscoveryV2Card
           userId={user.id}
-          refreshKey={analysisVersion}
+          refreshKey={
+            analysisVersion
+          }
         />
 
         <WeeklyReportCard
           userId={user.id}
           plan={userPlan}
-          refreshKey={weeklyReportVersion}
+          refreshKey={
+            weeklyReportVersion
+          }
         />
 
-        <ReactionTrendCard userId={user.id} />
+        <ReactionTrendCard
+          userId={user.id}
+        />
 
         <ReactionTimelineCard
           userId={user.id}
-          refreshKey={timelineVersion}
+          refreshKey={
+            timelineVersion
+          }
         />
       </div>
     </main>

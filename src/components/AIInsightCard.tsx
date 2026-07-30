@@ -41,6 +41,9 @@ type AIInsightCardProps = {
   onAnalysisComplete: () => void;
   onMeaningGrowthComplete: () => void;
   onTodaysReflectionComplete: () => void;
+  onContinueReflection?: (
+    question: string
+  ) => void;
 };
 
 const typeLabels: Record<string, string> = {
@@ -62,14 +65,20 @@ export default function AIInsightCard({
   onAnalysisComplete,
   onMeaningGrowthComplete,
   onTodaysReflectionComplete,
+  onContinueReflection,
 }: AIInsightCardProps) {
   const [insight, setInsight] =
     useState<LegacyAIInsight | null>(null);
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] =
+    useState(false);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const [message, setMessage] =
+    useState("");
+
+  const today = new Date()
+    .toISOString()
+    .slice(0, 10);
 
   const todayLogs = logs.filter(
     (log) => log.log_date === today
@@ -77,23 +86,28 @@ export default function AIInsightCard({
 
   const ensureMeaningGrowth = async () => {
     const cachedMeaningGrowth =
-      await getTodayMeaningGrowthAnalysis(userId);
+      await getTodayMeaningGrowthAnalysis(
+        userId
+      );
 
     if (cachedMeaningGrowth) {
       return;
     }
 
     const context =
-      await loadTodayMeaningGrowthRevisionContext(userId);
+      await loadTodayMeaningGrowthRevisionContext(
+        userId
+      );
 
     if (!context) {
       return;
     }
 
-    const meaningGrowth = await analyzeMeaningGrowth(
-      context.initialContent,
-      context.latestContent
-    );
+    const meaningGrowth =
+      await analyzeMeaningGrowth(
+        context.initialContent,
+        context.latestContent
+      );
 
     await saveMeaningGrowthAnalysis({
       userId,
@@ -109,44 +123,52 @@ export default function AIInsightCard({
     onMeaningGrowthComplete();
   };
 
-  const ensureTodaysReflection = async () => {
-    const cachedReflection =
-      await getTodayTodaysReflection(userId);
+  const ensureTodaysReflection =
+    async () => {
+      const cachedReflection =
+        await getTodayTodaysReflection(
+          userId
+        );
 
-    if (cachedReflection) {
-      return;
-    }
+      if (cachedReflection) {
+        return;
+      }
 
-    const context =
-      await loadTodaysReflectionContext(userId);
+      const context =
+        await loadTodaysReflectionContext(
+          userId
+        );
 
-    if (
-      !context.dailyLogId ||
-      !context.latestRevisionNumber
-    ) {
-      return;
-    }
+      if (
+        !context.dailyLogId ||
+        !context.latestRevisionNumber
+      ) {
+        return;
+      }
 
-    const result =
-      await generateTodaysReflection(context);
+      const result =
+        await generateTodaysReflection(
+          context
+        );
 
-    await saveTodaysReflection({
-      userId,
-      dailyLogId: context.dailyLogId,
-      logDate: context.logDate,
-      latestRevisionNumber:
-        context.latestRevisionNumber,
-      result,
-      context,
-    });
+      await saveTodaysReflection({
+        userId,
+        dailyLogId: context.dailyLogId,
+        logDate: context.logDate,
+        latestRevisionNumber:
+          context.latestRevisionNumber,
+        result,
+        context,
+      });
 
-    onTodaysReflectionComplete();
-  };
+      onTodaysReflectionComplete();
+    };
 
-  const createDerivedAnalyses = async () => {
-    await ensureMeaningGrowth();
-    await ensureTodaysReflection();
-  };
+  const createDerivedAnalyses =
+    async () => {
+      await ensureMeaningGrowth();
+      await ensureTodaysReflection();
+    };
 
   const handleAnalyze = async () => {
     setInsight(null);
@@ -177,15 +199,19 @@ export default function AIInsightCard({
         return;
       }
 
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          logs: todayLogs,
-        }),
-      });
+      const response = await fetch(
+        "/api/analyze",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            logs: todayLogs,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const responseText =
@@ -197,7 +223,9 @@ export default function AIInsightCard({
           responseText
         );
 
-        throw new Error("AI 분석 실패");
+        throw new Error(
+          "AI 분석 실패"
+        );
       }
 
       const data: AIInsight =
@@ -205,7 +233,10 @@ export default function AIInsightCard({
 
       setInsight(data);
 
-      await saveAIAnalysis(userId, data);
+      await saveAIAnalysis(
+        userId,
+        data
+      );
 
       onAnalysisComplete();
 
@@ -232,21 +263,42 @@ export default function AIInsightCard({
     }
   };
 
+  const handleContinueReflection =
+    () => {
+      if (
+        typeof onContinueReflection !==
+        "function"
+      ) {
+        console.warn(
+          "AIInsightCard에 onContinueReflection 함수가 전달되지 않았습니다."
+        );
+
+        return;
+      }
+
+      onContinueReflection(
+        reflectionQuestion
+      );
+    };
+
   useEffect(() => {
     setInsight(null);
 
-    const loadCachedAnalysis = async () => {
-      try {
-        const cached =
-          await getTodayAnalysis(userId);
+    const loadCachedAnalysis =
+      async () => {
+        try {
+          const cached =
+            await getTodayAnalysis(
+              userId
+            );
 
-        if (cached) {
-          setInsight(cached);
+          if (cached) {
+            setInsight(cached);
+          }
+        } catch (error) {
+          console.error(error);
         }
-      } catch (error) {
-        console.error(error);
-      }
-    };
+      };
 
     loadCachedAnalysis();
   }, [userId, refreshKey]);
@@ -274,14 +326,16 @@ export default function AIInsightCard({
       <p className="mt-4 leading-8 text-gray-700">
         최근 기록을 기반으로
         <br />
-        반복되는 반응 대상과 몰입 신호를 분석합니다.
+        반복되는 반응 대상과 몰입
+        신호를 분석합니다.
       </p>
 
       <button
         type="button"
         onClick={handleAnalyze}
         disabled={
-          loading || todayLogs.length === 0
+          loading ||
+          todayLogs.length === 0
         }
         className="mt-6 w-full rounded-xl bg-blue-600 py-4 text-lg font-bold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
       >
@@ -309,7 +363,8 @@ export default function AIInsightCard({
                   item &&
                   item.target &&
                   item.normalized_target &&
-                  typeof item.weight === "number"
+                  typeof item.weight ===
+                    "number"
               )
               .map((item) => (
                 <article
@@ -318,17 +373,21 @@ export default function AIInsightCard({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-base font-bold text-gray-900">
-                      {item.normalized_target}
+                      {
+                        item.normalized_target
+                      }
                     </p>
 
                     <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                      {typeLabels[item.type] ??
-                        item.type}
+                      {typeLabels[
+                        item.type
+                      ] ?? item.type}
                     </span>
                   </div>
 
                   <p className="mt-2 text-xs text-gray-500">
-                    원문 표현: {item.target}
+                    원문 표현:{" "}
+                    {item.target}
                   </p>
 
                   <p className="mt-2 font-medium text-gray-800">
@@ -339,7 +398,8 @@ export default function AIInsightCard({
                     반응 강도{" "}
                     <span className="font-semibold text-blue-600">
                       {Math.round(
-                        item.weight * 100
+                        item.weight *
+                          100
                       )}
                       %
                     </span>
@@ -355,10 +415,14 @@ export default function AIInsightCard({
               </div>
 
               <div>
-                <p className="text-gray-500">전체 감정</p>
+                <p className="text-gray-500">
+                  전체 감정
+                </p>
 
                 <p className="mt-1 text-base font-bold text-gray-900">
-                  {insight.overall_emotion}
+                  {
+                    insight.overall_emotion
+                  }
                 </p>
               </div>
             </div>
@@ -369,10 +433,14 @@ export default function AIInsightCard({
               </div>
 
               <div>
-                <p className="text-gray-500">에너지</p>
+                <p className="text-gray-500">
+                  에너지
+                </p>
 
                 <p className="mt-1 text-base font-bold text-gray-900">
-                  {insight.overall_energy}
+                  {
+                    insight.overall_energy
+                  }
                 </p>
               </div>
             </div>
@@ -383,10 +451,16 @@ export default function AIInsightCard({
               </div>
 
               <div>
-                <p className="text-gray-500">몰입 신호</p>
+                <p className="text-gray-500">
+                  몰입 신호
+                </p>
 
                 <p className="mt-1 text-base font-bold text-cyan-600">
-                  {Math.round(insight.immersion_score * 100)}%
+                  {Math.round(
+                    insight.immersion_score *
+                      100
+                  )}
+                  %
                 </p>
               </div>
             </div>
@@ -397,14 +471,20 @@ export default function AIInsightCard({
               </div>
 
               <div>
-                <p className="text-gray-500">분석 신뢰도</p>
+                <p className="text-gray-500">
+                  분석 신뢰도
+                </p>
 
                 <p className="mt-1 text-base font-bold text-green-600">
-                  {Math.round(insight.confidence * 100)}%
+                  {Math.round(
+                    insight.confidence *
+                      100
+                  )}
+                  %
                 </p>
               </div>
             </div>
-          </div>          
+          </div>
 
           <div className="mt-7">
             <h3 className="text-lg font-bold text-gray-900">
@@ -416,31 +496,73 @@ export default function AIInsightCard({
             </p>
           </div>
 
-          <div className="mt-7 rounded-2xl border-2 border-violet-400 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-lg shadow-violet-100">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xl shadow-md">
+          <div className="mt-7 rounded-3xl border-2 border-violet-400 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-lg shadow-violet-100 sm:p-7">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-600 text-2xl shadow-md shadow-violet-200">
                 🤔
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-extrabold tracking-tight text-violet-700">
-                    잠시 돌아보기
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xl font-extrabold tracking-tight text-violet-700 sm:text-2xl">
+                    한 번 더 기록해
+                    보세요
                   </h3>
 
                   <span
                     aria-hidden="true"
-                    className="text-violet-500"
+                    className="text-lg text-violet-500"
                   >
                     ✨
                   </span>
                 </div>
 
-                <p className="mt-4 break-keep text-lg font-bold leading-8 text-gray-950">
-                  {reflectionQuestion}
+                <p className="mt-3 break-keep text-sm leading-6 text-gray-600 sm:text-base">
+                  아래 질문을 보고 떠오른
+                  생각을 오늘 기록에 덧붙여
+                  보세요.
                 </p>
               </div>
+            </div>
 
+            <div className="mt-6 rounded-2xl border border-violet-200 bg-white/70 px-5 py-6 text-center shadow-inner shadow-violet-100/60 sm:px-8 sm:py-8">
+              <p className="break-keep text-lg font-extrabold leading-8 text-gray-950 sm:text-xl sm:leading-9">
+                {reflectionQuestion}
+              </p>
+
+              <div
+                aria-hidden="true"
+                className="mt-6 flex items-center gap-3"
+              >
+                <span className="h-px flex-1 bg-violet-200" />
+
+                <span className="text-lg text-violet-500">
+                  🪶
+                </span>
+
+                <span className="h-px flex-1 bg-violet-200" />
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  handleContinueReflection
+                }
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-4 text-base font-bold text-white shadow-md shadow-violet-200 transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 sm:text-lg"
+              >
+                <span aria-hidden="true">
+                  ✏️
+                </span>
+
+                <span>
+                  질문에 답하며 이어쓰기
+                </span>
+              </button>
+
+              <p className="mt-4 break-keep text-center text-xs leading-5 text-gray-500 sm:text-sm">
+                작성한 내용은 오늘 기록에
+                이어서 저장됩니다.
+              </p>
             </div>
           </div>
         </div>
