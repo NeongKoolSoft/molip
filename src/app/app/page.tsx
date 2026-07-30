@@ -72,6 +72,11 @@ function trackGoogleAdsSignup(currentUser: User) {
     accountAge < 30 * 60 * 1000 &&
     creationLoginGap < 5 * 60 * 1000;
 
+  console.log("trackGoogleAdsSignup 호출");
+  console.log("currentUser", currentUser);
+  console.log("gtag", typeof window.gtag);
+  console.log("isNewSignup", isNewSignup);
+
   if (!isNewSignup) {
     return;
   }
@@ -83,11 +88,6 @@ function trackGoogleAdsSignup(currentUser: User) {
   });
 
   window.localStorage.setItem(trackedKey, new Date().toISOString());
-
-  console.log("trackGoogleAdsSignup 호출");
-  console.log("currentUser", currentUser);
-  console.log("gtag", typeof window.gtag);
-  console.log("isNewSignup", isNewSignup);
   
 }
 
