@@ -48,6 +48,10 @@ declare global {
 
 function trackGoogleAdsSignup(currentUser: User) {
 
+  console.log("trackGoogleAdsSignup 호출");
+  console.log("currentUser", currentUser);
+  console.log("gtag", typeof window.gtag);
+
   if (typeof window === "undefined" || !window.gtag) {
     return;
   }
@@ -72,9 +76,6 @@ function trackGoogleAdsSignup(currentUser: User) {
     accountAge < 30 * 60 * 1000 &&
     creationLoginGap < 5 * 60 * 1000;
 
-  console.log("trackGoogleAdsSignup 호출");
-  console.log("currentUser", currentUser);
-  console.log("gtag", typeof window.gtag);
   console.log("isNewSignup", isNewSignup);
 
   if (!isNewSignup) {
