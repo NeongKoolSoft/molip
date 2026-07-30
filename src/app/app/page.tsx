@@ -35,6 +35,52 @@ import ImmersionDiscoveryV2Card from "@/components/ImmersionDiscoveryV2Card";
 import TodaysReflectionCard from "@/components/TodaysReflectionCard";
 import WeeklyReportCard from "@/components/WeeklyReportCard";
 
+declare global {
+  interface Window {
+    gtag?: (
+      command: "event",
+      eventName: string,
+      parameters?: Record<string, unknown>
+    ) => void;
+  }
+}
+
+function trackGoogleAdsSignup(currentUser: User) {
+  if (typeof window === "undefined" || !window.gtag) {
+    return;
+  }
+
+  const trackedKey = `molip_google_ads_signup_tracked_${currentUser.id}`;
+
+  if (window.localStorage.getItem(trackedKey)) {
+    return;
+  }
+
+  const createdAt = new Date(currentUser.created_at).getTime();
+  const lastSignInAt = currentUser.last_sign_in_at
+    ? new Date(currentUser.last_sign_in_at).getTime()
+    : createdAt;
+
+  const accountAge = Date.now() - createdAt;
+  const creationLoginGap = Math.abs(lastSignInAt - createdAt);
+
+  // 계정 생성 직후의 최초 로그인만 가입으로 처리
+  const isNewSignup =
+    accountAge >= 0 &&
+    accountAge < 30 * 60 * 1000 &&
+    creationLoginGap < 5 * 60 * 1000;
+
+  if (!isNewSignup) {
+    return;
+  }
+
+  window.gtag("event", "conversion", {
+    send_to: "AW-17811031025/IBnsCIXd_dgcEPGH-6xC",
+  });
+
+  window.localStorage.setItem(trackedKey, new Date().toISOString());
+}
+
 function getLocalDateKey(): string {
   const now = new Date();
 
@@ -99,7 +145,9 @@ export default function Home() {
       setIsInitialContentLoaded(false);
 
       if (currentUser) {
-        const [todayContent, recentLogs, plan] = await Promise.all([
+        trackGoogleAdsSignup(currentUser);
+
+      const [todayContent, recentLogs, plan] = await Promise.all([
           loadTodayLog(currentUser.id),
           loadRecentLogs(currentUser.id),
           loadUserPlan(currentUser.id),
