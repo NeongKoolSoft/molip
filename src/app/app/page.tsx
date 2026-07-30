@@ -27,6 +27,7 @@ import LoginForm from "@/components/LoginForm";
 import DailyLogForm from "@/components/DailyLogForm";
 import RecentLogs from "@/components/RecentLogs";
 import AIInsightCard from "@/components/AIInsightCard";
+//import ReflectionQuestionDevCard from "@/components/ReflectionQuestionDevCard";
 import ReactionTrendCard from "@/components/ReactionTrendCard";
 import ReactionTimelineCard from "@/components/ReactionTimelineCard";
 import GrowthSignalCard from "@/components/GrowthSignalCard";
@@ -362,6 +363,12 @@ export default function Home() {
             setTodaysReflectionVersion((previous) => previous + 1)
           }
         />
+
+{/*
+        <ReflectionQuestionDevCard
+          userId={user.id}
+        />
+*/}
 
         <GrowthSignalCard
           userId={user.id}

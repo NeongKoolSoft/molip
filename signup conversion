@@ -1,0 +1,68 @@
+[1mdiff --git a/src/app/app/page.tsx b/src/app/app/page.tsx[m
+[1mindex 0805cf6..81ee535 100644[m
+[1m--- a/src/app/app/page.tsx[m
+[1m+++ b/src/app/app/page.tsx[m
+[36m@@ -35,6 +35,52 @@[m [mimport ImmersionDiscoveryV2Card from "@/components/ImmersionDiscoveryV2Card";[m
+ import TodaysReflectionCard from "@/components/TodaysReflectionCard";[m
+ import WeeklyReportCard from "@/components/WeeklyReportCard";[m
+ [m
+[32m+[m[32mdeclare global {[m
+[32m+[m[32m  interface Window {[m
+[32m+[m[32m    gtag?: ([m
+[32m+[m[32m      command: "event",[m
+[32m+[m[32m      eventName: string,[m
+[32m+[m[32m      parameters?: Record<string, unknown>[m
+[32m+[m[32m    ) => void;[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction trackGoogleAdsSignup(currentUser: User) {[m
+[32m+[m[32m  if (typeof window === "undefined" || !window.gtag) {[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const trackedKey = `molip_google_ads_signup_tracked_${currentUser.id}`;[m
+[32m+[m
+[32m+[m[32m  if (window.localStorage.getItem(trackedKey)) {[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const createdAt = new Date(currentUser.created_at).getTime();[m
+[32m+[m[32m  const lastSignInAt = currentUser.last_sign_in_at[m
+[32m+[m[32m    ? new Date(currentUser.last_sign_in_at).getTime()[m
+[32m+[m[32m    : createdAt;[m
+[32m+[m
+[32m+[m[32m  const accountAge = Date.now() - createdAt;[m
+[32m+[m[32m  const creationLoginGap = Math.abs(lastSignInAt - createdAt);[m
+[32m+[m
+[32m+[m[32m  // 계정 생성 직후의 최초 로그인만 가입으로 처리[m
+[32m+[m[32m  const isNewSignup =[m
+[32m+[m[32m    accountAge >= 0 &&[m
+[32m+[m[32m    accountAge < 30 * 60 * 1000 &&[m
+[32m+[m[32m    creationLoginGap < 5 * 60 * 1000;[m
+[32m+[m
+[32m+[m[32m  if (!isNewSignup) {[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  window.gtag("event", "conversion", {[m
+[32m+[m[32m    send_to: "AW-17811031025/IBnsCIXd_dgcEPGH-6xC",[m
+[32m+[m[32m  });[m
+[32m+[m
+[32m+[m[32m  window.localStorage.setItem(trackedKey, new Date().toISOString());[m
+[32m+[m[32m}[m
+[32m+[m
+ function getLocalDateKey(): string {[m
+   const now = new Date();[m
+ [m
+[36m@@ -99,7 +145,9 @@[m [mexport default function Home() {[m
+       setIsInitialContentLoaded(false);[m
+ [m
+       if (currentUser) {[m
+[31m-        const [todayContent, recentLogs, plan] = await Promise.all([[m
+[32m+[m[32m        trackGoogleAdsSignup(currentUser);[m
+[32m+[m
+[32m+[m[32m      const [todayContent, recentLogs, plan] = await Promise.all([[m
+           loadTodayLog(currentUser.id),[m
+           loadRecentLogs(currentUser.id),[m
+           loadUserPlan(currentUser.id),[m
