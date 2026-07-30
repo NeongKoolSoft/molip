@@ -47,6 +47,7 @@ declare global {
 }
 
 function trackGoogleAdsSignup(currentUser: User) {
+
   if (typeof window === "undefined" || !window.gtag) {
     return;
   }
@@ -75,11 +76,19 @@ function trackGoogleAdsSignup(currentUser: User) {
     return;
   }
 
+  console.log("conversion event 전송");
+  
   window.gtag("event", "conversion", {
     send_to: "AW-17811031025/IBnsCIXd_dgcEPGH-6xC",
   });
 
   window.localStorage.setItem(trackedKey, new Date().toISOString());
+
+  console.log("trackGoogleAdsSignup 호출");
+  console.log("currentUser", currentUser);
+  console.log("gtag", typeof window.gtag);
+  console.log("isNewSignup", isNewSignup);
+  
 }
 
 function getLocalDateKey(): string {
