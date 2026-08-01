@@ -36,7 +36,7 @@ import LoginForm from "@/components/LoginForm";
 import DailyLogForm from "@/components/DailyLogForm";
 import RecentLogs from "@/components/RecentLogs";
 import AIInsightCard from "@/components/AIInsightCard";
-// import ReflectionQuestionDevCard from "@/components/ReflectionQuestionDevCard";
+import ReflectionQuestionDevCard from "@/components/ReflectionQuestionDevCard";
 import ReactionTrendCard from "@/components/ReactionTrendCard";
 import ReactionTimelineCard from "@/components/ReactionTimelineCard";
 import GrowthSignalCard from "@/components/GrowthSignalCard";
@@ -44,6 +44,7 @@ import MeaningGrowthCard from "@/components/MeaningGrowthCard";
 import ImmersionDiscoveryV2Card from "@/components/ImmersionDiscoveryV2Card";
 import TodaysReflectionCard from "@/components/TodaysReflectionCard";
 import WeeklyReportCard from "@/components/WeeklyReportCard";
+import ReflectionLoopV3Card from "@/components/ReflectionLoopV3Card";
 
 declare global {
   interface Window {
@@ -226,6 +227,11 @@ export default function Home() {
   const [
     weeklyReportVersion,
     setWeeklyReportVersion,
+  ] = useState(0);
+
+  const [
+    reflectionLoopVersion,
+    setReflectionLoopVersion,
   ] = useState(0);
 
   const dailyLogFormRef =
@@ -691,13 +697,15 @@ export default function Home() {
           }
           onAnalysisComplete={() => {
             setTimelineVersion(
-              (previous) =>
-                previous + 1
+              (previous) => previous + 1
             );
 
             setWeeklyReportVersion(
-              (previous) =>
-                previous + 1
+              (previous) => previous + 1
+            );
+
+            setReflectionLoopVersion(
+              (previous) => previous + 1
             );
           }}
           onMeaningGrowthComplete={() =>
@@ -712,16 +720,24 @@ export default function Home() {
                 previous + 1
             )
           }
+        />
+
+        <ReflectionLoopV3Card
+          userId={user.id}
+          refreshKey={
+            reflectionLoopVersion
+          }
           onContinueReflection={
             handleContinueReflection
           }
         />
-
+        
         {/*
         <ReflectionQuestionDevCard
           userId={user.id}
         />
         */}
+        
 
         <GrowthSignalCard
           userId={user.id}

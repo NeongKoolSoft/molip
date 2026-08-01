@@ -30,10 +30,6 @@ import {
   saveTodaysReflection,
 } from "@/services/todaysReflectionAnalysisService";
 
-type LegacyAIInsight = AIInsight & {
-  question?: string;
-};
-
 type AIInsightCardProps = {
   userId: string;
   logs: DailyLog[];
@@ -41,9 +37,6 @@ type AIInsightCardProps = {
   onAnalysisComplete: () => void;
   onMeaningGrowthComplete: () => void;
   onTodaysReflectionComplete: () => void;
-  onContinueReflection?: (
-    question: string
-  ) => void;
 };
 
 const typeLabels: Record<string, string> = {
@@ -65,16 +58,20 @@ export default function AIInsightCard({
   onAnalysisComplete,
   onMeaningGrowthComplete,
   onTodaysReflectionComplete,
-  onContinueReflection,
 }: AIInsightCardProps) {
   const [insight, setInsight] =
-    useState<LegacyAIInsight | null>(null);
+    useState<AIInsight | null>(null);
 
   const [loading, setLoading] =
     useState(false);
 
   const [message, setMessage] =
     useState("");
+
+  const [
+    showAllReactionTargets,
+    setShowAllReactionTargets,
+  ] = useState(false);    
 
   const today = new Date()
     .toISOString()
@@ -172,6 +169,7 @@ export default function AIInsightCard({
 
   const handleAnalyze = async () => {
     setInsight(null);
+    setShowAllReactionTargets(false);
     setLoading(true);
     setMessage("");
 
@@ -192,7 +190,7 @@ export default function AIInsightCard({
           );
 
           setMessage(
-            "기본 AI 분석은 불러왔지만, 생각의 흐름을 만드는 중 일부 오류가 발생했습니다."
+            "기본 AI 분석은 불러왔지만, 일부 변화 분석을 만드는 중 오류가 발생했습니다."
           );
         }
 
@@ -224,7 +222,7 @@ export default function AIInsightCard({
         );
 
         throw new Error(
-          "AI 분석 실패"
+          "AI 분석에 실패했습니다."
         );
       }
 
@@ -249,40 +247,30 @@ export default function AIInsightCard({
         );
 
         setMessage(
-          "AI 분석은 완료됐지만, 생각의 흐름을 만드는 중 일부 오류가 발생했습니다."
+          "AI 분석은 완료됐지만, 일부 변화 분석을 만드는 중 오류가 발생했습니다."
         );
       }
     } catch (error) {
-      console.error(error);
+      console.error(
+        "AI 분석 오류:",
+        error
+      );
 
       setMessage(
-        "AI 분석 중 오류가 발생했습니다."
+        error instanceof Error
+          ? error.message
+          : "AI 분석 중 오류가 발생했습니다."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleContinueReflection =
-    () => {
-      if (
-        typeof onContinueReflection !==
-        "function"
-      ) {
-        console.warn(
-          "AIInsightCard에 onContinueReflection 함수가 전달되지 않았습니다."
-        );
-
-        return;
-      }
-
-      onContinueReflection(
-        reflectionQuestion
-      );
-    };
-
   useEffect(() => {
+    let isMounted = true;
+
     setInsight(null);
+    setShowAllReactionTargets(false);
 
     const loadCachedAnalysis =
       async () => {
@@ -292,43 +280,69 @@ export default function AIInsightCard({
               userId
             );
 
-          if (cached) {
+          if (
+            isMounted &&
+            cached
+          ) {
             setInsight(cached);
           }
         } catch (error) {
-          console.error(error);
+          console.error(
+            "저장된 AI 분석 조회 오류:",
+            error
+          );
         }
       };
 
     loadCachedAnalysis();
+
+    return () => {
+      isMounted = false;
+    };
   }, [userId, refreshKey]);
 
-  const reflectionQuestion =
-    insight?.reflection_question ??
-    insight?.question ??
-    "최근 가장 오래 마음에 남은 반응은 무엇이었고, 왜 그랬을까요?";
+  const validReactionTargets =
+    insight?.reaction_targets.filter(
+      (item) =>
+        item &&
+        item.target &&
+        item.normalized_target &&
+        typeof item.weight === "number"
+    ) ?? [];
+
+  const displayedReactionTargets =
+    showAllReactionTargets
+      ? validReactionTargets
+      : validReactionTargets.slice(0, 3);
+
+  const hiddenReactionTargetCount =
+    Math.max(
+      validReactionTargets.length - 3,
+      0
+    );
 
   return (
-    <section className="mt-10 rounded-3xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
-      <div className="flex items-center gap-2">
-        <h2 className="text-2xl font-bold text-gray-950">
-          기록에서 발견한 나의 변화
-        </h2>
+    <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xl">
+          🧭
+        </div>
 
-        <span
-          aria-hidden="true"
-          className="text-xl"
-        >
-          ✨
-        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-indigo-600">
+            오늘의 반응
+          </p>
+
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
+            기록에서 발견한 변화
+          </h2>
+
+          <p className="mt-3 break-keep text-sm leading-7 text-slate-600 sm:text-base">
+            오늘 기록에서 마음이 움직인 대상과
+            에너지, 몰입 신호를 살펴봅니다.
+          </p>
+        </div>
       </div>
-
-      <p className="mt-4 leading-8 text-gray-700">
-        최근 기록을 기반으로
-        <br />
-        반복되는 반응 대상과 몰입
-        신호를 분석합니다.
-      </p>
 
       <button
         type="button"
@@ -337,234 +351,212 @@ export default function AIInsightCard({
           loading ||
           todayLogs.length === 0
         }
-        className="mt-6 w-full rounded-xl bg-blue-600 py-4 text-lg font-bold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+        className="mt-6 w-full rounded-xl bg-indigo-600 px-5 py-4 text-base font-bold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300"
       >
         {loading
-          ? "분석 중..."
-          : "✨ 변화 발견하기"}
+          ? "기록의 변화를 살펴보고 있습니다..."
+          : "기록에서 변화 발견하기"}
       </button>
 
-      {message && (
-        <p className="mt-4 text-sm text-red-500">
-          {message}
+      {todayLogs.length === 0 && (
+        <p className="mt-3 text-center text-sm leading-6 text-slate-500">
+          오늘 기록을 저장하면 분석을 시작할 수 있습니다.
         </p>
       )}
 
+      {message && (
+        <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm leading-6 text-red-700">
+            {message}
+          </p>
+        </div>
+      )}
+
       {insight && (
-        <div className="mt-6 rounded-2xl bg-white p-4 text-sm leading-6 text-gray-700 shadow-sm sm:p-5">
-          <h3 className="text-lg font-bold text-gray-900">
-            반응 대상
-          </h3>
+        <div className="mt-7 space-y-7">
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="text-lg"
+              >
+                🔎
+              </span>
 
-          <div className="mt-4 space-y-4">
-            {insight.reaction_targets
-              .filter(
-                (item) =>
-                  item &&
-                  item.target &&
-                  item.normalized_target &&
-                  typeof item.weight ===
-                    "number"
-              )
-              .map((item) => (
-                <article
-                  key={`${item.target}-${item.type}`}
-                  className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+              <h3 className="text-lg font-bold text-slate-950">
+                마음이 움직인 대상
+              </h3>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {displayedReactionTargets.map(
+                (item) => {
+                  const percentage =
+                    Math.round(
+                      item.weight * 100
+                    );
+
+                  return (
+                    <article
+                      key={`${item.target}-${item.type}`}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="min-w-0 break-keep text-base font-bold leading-7 text-slate-950">
+                          {
+                            item.normalized_target
+                          }
+                        </p>
+
+                        <span className="shrink-0 rounded-full border border-indigo-100 bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
+                          {typeLabels[
+                            item.type
+                          ] ?? item.type}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 line-clamp-2 break-keep text-sm leading-6 text-slate-600">
+                        {item.evidence}
+                      </p>
+
+                      <div className="mt-4 flex items-center gap-3">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-indigo-500"
+                            style={{
+                              width:
+                                `${percentage}%`,
+                            }}
+                          />
+                        </div>
+
+                        <span className="shrink-0 text-xs font-semibold text-indigo-600">
+                          {percentage}%
+                        </span>
+                      </div>
+
+                      <details className="mt-3">
+                        <summary className="cursor-pointer list-none text-[11px] font-medium text-slate-400">
+                          기록 속 표현 보기 ▾
+                        </summary>
+
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          {item.target}
+                        </p>
+                      </details>
+                    </article>
+                  );
+                }
+              )}
+
+              {hiddenReactionTargetCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowAllReactionTargets(
+                      (previous) => !previous
+                    )
+                  }
+                  aria-expanded={
+                    showAllReactionTargets
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-base font-bold text-gray-900">
-                      {
-                        item.normalized_target
-                      }
-                    </p>
-
-                    <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                      {typeLabels[
-                        item.type
-                      ] ?? item.type}
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-xs text-gray-500">
-                    원문 표현:{" "}
-                    {item.target}
-                  </p>
-
-                  <p className="mt-2 font-medium text-gray-800">
-                    {item.evidence}
-                  </p>
-
-                  <p className="mt-3 text-xs text-gray-500">
-                    반응 강도{" "}
-                    <span className="font-semibold text-blue-600">
-                      {Math.round(
-                        item.weight *
-                          100
-                      )}
-                      %
-                    </span>
-                  </p>
-                </article>
-              ))}
+                  {showAllReactionTargets
+                    ? "핵심 반응만 보기"
+                    : `나머지 ${hiddenReactionTargetCount}개 반응 보기`}
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-2xl">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg shadow-sm">
                 💜
               </div>
 
-              <div>
-                <p className="text-gray-500">
-                  전체 감정
-                </p>
+              <p className="mt-4 text-sm text-slate-500">
+                전체 감정
+              </p>
 
-                <p className="mt-1 text-base font-bold text-gray-900">
-                  {
-                    insight.overall_emotion
-                  }
-                </p>
-              </div>
+              <p className="mt-1 break-keep text-base font-bold text-slate-950">
+                {
+                  insight.overall_emotion
+                }
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-2xl">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg shadow-sm">
                 ⚡
               </div>
 
-              <div>
-                <p className="text-gray-500">
-                  에너지
-                </p>
+              <p className="mt-4 text-sm text-slate-500">
+                에너지
+              </p>
 
-                <p className="mt-1 text-base font-bold text-gray-900">
-                  {
-                    insight.overall_energy
-                  }
-                </p>
-              </div>
+              <p className="mt-1 text-base font-bold text-slate-950">
+                {
+                  insight.overall_energy
+                }
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-2xl">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg shadow-sm">
                 💧
               </div>
 
-              <div>
-                <p className="text-gray-500">
-                  몰입 신호
-                </p>
+              <p className="mt-4 text-sm text-slate-500">
+                몰입 신호
+              </p>
 
-                <p className="mt-1 text-base font-bold text-cyan-600">
-                  {Math.round(
-                    insight.immersion_score *
-                      100
-                  )}
-                  %
-                </p>
-              </div>
+              <p className="mt-1 text-base font-bold text-indigo-600">
+                {Math.round(
+                  insight.immersion_score *
+                    100
+                )}
+                %
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-2xl">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg shadow-sm">
                 🛡️
               </div>
 
-              <div>
-                <p className="text-gray-500">
-                  분석 신뢰도
-                </p>
+              <p className="mt-4 text-sm text-slate-500">
+                분석 신뢰도
+              </p>
 
-                <p className="mt-1 text-base font-bold text-green-600">
-                  {Math.round(
-                    insight.confidence *
-                      100
-                  )}
-                  %
-                </p>
-              </div>
+              <p className="mt-1 text-base font-bold text-indigo-600">
+                {Math.round(
+                  insight.confidence *
+                    100
+                )}
+                %
+              </p>
             </div>
           </div>
 
-          <div className="mt-7">
-            <h3 className="text-lg font-bold text-gray-900">
-              요약
-            </h3>
-
-            <p className="mt-3 leading-7 text-gray-700">
-              {insight.summary}
-            </p>
-          </div>
-
-          <div className="mt-7 rounded-3xl border-2 border-violet-400 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 shadow-lg shadow-violet-100 sm:p-7">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-600 text-2xl shadow-md shadow-violet-200">
-                🤔
+          <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-lg shadow-sm">
+                🧠
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-xl font-extrabold tracking-tight text-violet-700 sm:text-2xl">
-                    한 번 더 기록해
-                    보세요
-                  </h3>
+                <p className="text-sm font-semibold text-blue-700">
+                  AI가 읽은 오늘의 흐름
+                </p>
 
-                  <span
-                    aria-hidden="true"
-                    className="text-lg text-violet-500"
-                  >
-                    ✨
-                  </span>
-                </div>
-
-                <p className="mt-3 break-keep text-sm leading-6 text-gray-600 sm:text-base">
-                  아래 질문을 보고 떠오른
-                  생각을 오늘 기록에 덧붙여
-                  보세요.
+                <p className="mt-3 break-keep text-base leading-8 text-slate-700">
+                  {insight.summary}
                 </p>
               </div>
             </div>
-
-            <div className="mt-6 rounded-2xl border border-violet-200 bg-white/70 px-5 py-6 text-center shadow-inner shadow-violet-100/60 sm:px-8 sm:py-8">
-              <p className="break-keep text-lg font-extrabold leading-8 text-gray-950 sm:text-xl sm:leading-9">
-                {reflectionQuestion}
-              </p>
-
-              <div
-                aria-hidden="true"
-                className="mt-6 flex items-center gap-3"
-              >
-                <span className="h-px flex-1 bg-violet-200" />
-
-                <span className="text-lg text-violet-500">
-                  🪶
-                </span>
-
-                <span className="h-px flex-1 bg-violet-200" />
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  handleContinueReflection
-                }
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-4 text-base font-bold text-white shadow-md shadow-violet-200 transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 sm:text-lg"
-              >
-                <span aria-hidden="true">
-                  ✏️
-                </span>
-
-                <span>
-                  질문에 답하며 이어쓰기
-                </span>
-              </button>
-
-              <p className="mt-4 break-keep text-center text-xs leading-5 text-gray-500 sm:text-sm">
-                작성한 내용은 오늘 기록에
-                이어서 저장됩니다.
-              </p>
-            </div>
-          </div>
+          </article>
         </div>
       )}
     </section>

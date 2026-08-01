@@ -11,9 +11,23 @@ import type {
   ReflectionQuestionContextV2,
 } from "@/types/reflectionContext";
 
-const MAX_RECENT_EVIDENCE = 3;
+import type {
+  ReflectionContextAnalysis,
+} from "@/types/reflectionContextAnalysis";
 
-const normalizeText = (value: string): string => {
+const MAX_RECENT_EVIDENCE = 3;
+const MAX_THREAD_EVIDENCE = 3;
+
+const EMPTY_THOUGHT_PATTERN = {
+  expectation: null,
+  concern: null,
+  tension: null,
+  evidence: [],
+};
+
+const normalizeText = (
+  value: string
+): string => {
   return value
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+/g, " ")
@@ -21,18 +35,35 @@ const normalizeText = (value: string): string => {
     .trim();
 };
 
+const normalizeOptionalText = (
+  value: string | null | undefined
+): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = normalizeText(value);
+
+  return normalized || null;
+};
+
 const splitSentences = (
   value: string
 ): string[] => {
-  const normalized = normalizeText(value);
+  const normalized =
+    normalizeText(value);
 
   if (!normalized) {
     return [];
   }
 
   return normalized
-    .split(/(?<=[.!?。！？])\s+|\n+/)
-    .map((sentence) => sentence.trim())
+    .split(
+      /(?<=[.!?。！？])\s+|\n+/
+    )
+    .map((sentence) =>
+      sentence.trim()
+    )
     .filter(Boolean);
 };
 
@@ -43,9 +74,12 @@ const selectLatestLog = (
     return null;
   }
 
-  return [...logs].sort((a, b) => {
-    return b.log_date.localeCompare(a.log_date);
-  })[0];
+  return [...logs].sort(
+    (a, b) =>
+      b.log_date.localeCompare(
+        a.log_date
+      )
+  )[0];
 };
 
 const selectRecentEvidence = (
@@ -62,270 +96,411 @@ const selectRecentEvidence = (
 const selectLatestFocus = (
   recentEvidence: string[]
 ): string | null => {
-  return recentEvidence.at(-1) ?? null;
+  return (
+    recentEvidence.at(-1) ??
+    null
+  );
 };
 
-const selectThreadFocus = ({
-  evidence,
-  fallback,
-}: {
-  evidence: string[];
-  fallback: string;
-}): {
-  focus: string;
-  focusReason: string;
-} => {
-  const thoughtSentence = [...evidence]
-    .reverse()
-    .find((sentence) =>
-      /생각|느낌|기대|걱정|고민|필요|확인|만족|자연스럽|한계|어려움/.test(
-        sentence
-      )
-    );
-
-  if (thoughtSentence) {
-    return {
-      focus: thoughtSentence,
-      focusReason:
-        "중심 흐름의 근거 중 현재의 생각이나 고민이 가장 직접적으로 표현된 문장입니다.",
-    };
-  }
-
-  const latestEvidence =
-    evidence.at(-1);
-
-  if (latestEvidence) {
-    return {
-      focus: latestEvidence,
-      focusReason:
-        "중심 흐름과 연결된 근거 중 가장 최근에 이어진 문장입니다.",
-    };
-  }
-
-  return {
-    focus: fallback,
-    focusReason:
-      "별도의 생각 문장을 찾지 못해 중심 대상을 질문 초점으로 사용했습니다.",
-  };
-};
-
-const selectThoughtPattern = ({
-  latestRecord,
-  evidence,
-}: {
-  latestRecord: string;
-  evidence: string[];
-}) => {
-  const sourceSentences =
-    evidence.length > 0
-      ? evidence
-      : splitSentences(latestRecord);
-
-  const expectation =
-    [...sourceSentences]
-      .reverse()
-      .find((sentence) =>
-        /기대|바라|원하|높이|좋아지|개선|만족|완성|자연스럽게 작동/.test(
-          sentence
-        )
-      ) ?? null;
-
-  const concern =
-    [...sourceSentences]
-      .reverse()
-      .find((sentence) =>
-        /걱정|고민|한계|어렵|불안|확인 필요|문제|많이 들어가|하드코딩|통할지|적용할 수 있을지/.test(
-          sentence
-        )
-      ) ?? null;
-
-  const tension =
-    [...sourceSentences]
-      .reverse()
-      .find((sentence) =>
-        /하지만|다만|반면|그렇지만|동시에|해야 하는데|하고 싶지만/.test(
-          sentence
-        )
-      ) ?? null;
-
-  const thoughtEvidence = Array.from(
+const uniqueTexts = (
+  values: Array<
+    string | null | undefined
+  >
+): string[] => {
+  return Array.from(
     new Set(
-      [expectation, concern, tension].filter(
-        (item): item is string => Boolean(item)
-      )
+      values
+        .map((value) =>
+          normalizeOptionalText(value)
+        )
+        .filter(
+          (
+            value
+          ): value is string =>
+            Boolean(value)
+        )
     )
   );
+};
 
-  return {
+const validateEvidence = ({
+  evidence,
+  latestRecord,
+}: {
+  evidence: string[];
+  latestRecord: string;
+}): string[] => {
+  const normalizedRecord =
+    normalizeText(latestRecord);
+
+  if (!normalizedRecord) {
+    return [];
+  }
+
+  return uniqueTexts(evidence)
+    .filter((item) => {
+      return (
+        normalizedRecord.includes(
+          item
+        ) ||
+        item.includes(
+          normalizedRecord
+        )
+      );
+    })
+    .slice(
+      0,
+      MAX_THREAD_EVIDENCE
+    );
+};
+
+const findEvidenceForTarget = ({
+  target,
+  latestRecord,
+}: {
+  target: string;
+  latestRecord: string;
+}): string[] => {
+  const normalizedTarget =
+    normalizeText(target);
+
+  if (!normalizedTarget) {
+    return [];
+  }
+
+  return splitSentences(
+    latestRecord
+  )
+    .filter((sentence) =>
+      sentence.includes(
+        normalizedTarget
+      )
+    )
+    .slice(
+      -MAX_THREAD_EVIDENCE
+    );
+};
+
+const createThoughtPattern = (
+  reflectionAnalysis:
+    | ReflectionContextAnalysis
+    | null
+    | undefined,
+  latestRecord: string
+) => {
+  if (!reflectionAnalysis) {
+    return {
+      ...EMPTY_THOUGHT_PATTERN,
+    };
+  }
+
+  const {
     expectation,
     concern,
     tension,
-    evidence: thoughtEvidence,
+    evidence,
+  } =
+    reflectionAnalysis.thoughtPattern;
+
+  const normalizedExpectation =
+    normalizeOptionalText(
+      expectation
+    );
+
+  const normalizedConcern =
+    normalizeOptionalText(
+      concern
+    );
+
+  const normalizedTension =
+    normalizeOptionalText(
+      tension
+    );
+
+  const validatedEvidence =
+    validateEvidence({
+      evidence,
+      latestRecord,
+    });
+
+  return {
+    expectation:
+      normalizedExpectation,
+    concern: normalizedConcern,
+    tension: normalizedTension,
+    evidence: validatedEvidence,
   };
 };
+
+const createMainThreadFromAnalysis =
+  ({
+    reflectionAnalysis,
+    latestRecord,
+    recentEvidence,
+  }: {
+    reflectionAnalysis:
+      ReflectionContextAnalysis;
+    latestRecord: string;
+    recentEvidence: string[];
+  }): ReflectionMainThread | null => {
+    const analyzedMainThread =
+      reflectionAnalysis.mainThread;
+
+    if (!analyzedMainThread) {
+      return null;
+    }
+
+    const target =
+      normalizeOptionalText(
+        analyzedMainThread.target
+      );
+
+    if (!target) {
+      return null;
+    }
+
+    const reason =
+      normalizeOptionalText(
+        analyzedMainThread.reason
+      ) ??
+      "AI가 오늘 기록에서 선택한 중심 흐름입니다.";
+
+    const mainThreadEvidence =
+      validateEvidence({
+        evidence:
+          analyzedMainThread.evidence,
+        latestRecord,
+      });
+
+    const targetEvidence =
+      findEvidenceForTarget({
+        target,
+        latestRecord,
+      });
+
+    const evidence =
+      mainThreadEvidence.length > 0
+        ? mainThreadEvidence
+        : targetEvidence.length > 0
+          ? targetEvidence
+          : recentEvidence.slice(-1);
+
+    const analyzedFocus =
+      reflectionAnalysis.focus;
+
+    const focus =
+      normalizeOptionalText(
+        analyzedFocus?.text
+      ) ??
+      evidence.at(-1) ??
+      target;
+
+    const focusReason =
+      normalizeOptionalText(
+        analyzedFocus?.reason
+      ) ??
+      "중심 흐름과 연결된 질문 초점입니다.";
+
+    const thoughtPattern =
+      createThoughtPattern(
+        reflectionAnalysis,
+        latestRecord
+      );
+
+    return {
+      target,
+      reason,
+      evidence,
+      focus,
+      focusReason,
+      thoughtPattern,
+    };
+  };
+
+const createMainThreadFromAIInsight =
+  ({
+    latestRecord,
+    recentEvidence,
+    aiInsight,
+  }: {
+    latestRecord: string;
+    recentEvidence: string[];
+    aiInsight: AIInsight | null;
+  }): ReflectionMainThread | null => {
+    const candidates = (
+      aiInsight?.reaction_targets ??
+      []
+    )
+      .filter((reaction) => {
+        const target =
+          normalizeOptionalText(
+            reaction.target
+          );
+
+        const normalizedTarget =
+          normalizeOptionalText(
+            reaction.normalized_target
+          );
+
+        if (
+          !target &&
+          !normalizedTarget
+        ) {
+          return false;
+        }
+
+        return (
+          Boolean(
+            target &&
+              latestRecord.includes(
+                target
+              )
+          ) ||
+          Boolean(
+            normalizedTarget &&
+              latestRecord.includes(
+                normalizedTarget
+              )
+          )
+        );
+      })
+      .sort(
+        (a, b) =>
+          b.weight - a.weight
+      );
+
+    const strongestCandidate =
+      candidates[0];
+
+    if (!strongestCandidate) {
+      return null;
+    }
+
+    const target =
+      normalizeOptionalText(
+        strongestCandidate.target
+      );
+
+    const normalizedTarget =
+      normalizeOptionalText(
+        strongestCandidate
+          .normalized_target
+      );
+
+    const threadTarget =
+      normalizedTarget ??
+      target;
+
+    if (!threadTarget) {
+      return null;
+    }
+
+    const targetEvidence =
+      findEvidenceForTarget({
+        target:
+          target ?? threadTarget,
+        latestRecord,
+      });
+
+    const normalizedTargetEvidence =
+      findEvidenceForTarget({
+        target: threadTarget,
+        latestRecord,
+      });
+
+    const reactionEvidence =
+      normalizeOptionalText(
+        strongestCandidate.evidence
+      );
+
+    const evidence = uniqueTexts([
+      ...targetEvidence,
+      ...normalizedTargetEvidence,
+      reactionEvidence &&
+      latestRecord.includes(
+        reactionEvidence
+      )
+        ? reactionEvidence
+        : null,
+    ]).slice(
+      0,
+      MAX_THREAD_EVIDENCE
+    );
+
+    const safeEvidence =
+      evidence.length > 0
+        ? evidence
+        : recentEvidence.slice(-1);
+
+    const focus =
+      safeEvidence.at(-1) ??
+      threadTarget;
+
+    return {
+      target: threadTarget,
+
+      reason:
+        "오늘 기록에 실제로 등장한 반응 대상 중 가장 강한 항목을 임시 중심 흐름으로 사용했습니다.",
+
+      evidence:
+        safeEvidence,
+
+      focus,
+
+      focusReason:
+        "LLM 기반 Reflection Context 분석 결과가 없어 중심 흐름과 연결된 최근 근거를 임시 질문 초점으로 사용했습니다.",
+
+      thoughtPattern: {
+        ...EMPTY_THOUGHT_PATTERN,
+      },
+    };
+  };
 
 const selectMainThread = ({
   latestRecord,
   recentEvidence,
   aiInsight,
+  reflectionAnalysis,
 }: {
   latestRecord: string;
   recentEvidence: string[];
   aiInsight: AIInsight | null;
+  reflectionAnalysis?:
+    | ReflectionContextAnalysis
+    | null;
 }): ReflectionMainThread | null => {
-  const candidates = (
-    aiInsight?.reaction_targets ?? []
-  )
-    .filter((reaction) => {
-      const target =
-        reaction.target.trim();
-
-      const normalizedTarget =
-        reaction.normalized_target.trim();
-
-      if (!target && !normalizedTarget) {
-        return false;
-      }
-
-      return (
-        (
-          target.length > 0 &&
-          latestRecord.includes(target)
-        ) ||
-        (
-          normalizedTarget.length > 0 &&
-          latestRecord.includes(
-            normalizedTarget
-          )
-        )
-      );
-    })
-    .sort(
-      (a, b) => b.weight - a.weight
-    );
-
-  const strongestCandidate =
-    candidates[0];
-
-  if (strongestCandidate) {
-    const target =
-      strongestCandidate.target.trim();
-
-    const normalizedTarget =
-      strongestCandidate.normalized_target.trim();
-
-    const matchingEvidence =
-      recentEvidence.filter(
-        (sentence) =>
-          (
-            target.length > 0 &&
-            sentence.includes(target)
-          ) ||
-          (
-            normalizedTarget.length > 0 &&
-            sentence.includes(
-              normalizedTarget
-            )
-          )
-      );
-
-    const evidence =
-      matchingEvidence.length > 0
-        ? matchingEvidence
-        : strongestCandidate.evidence.trim()
-          ? [
-              strongestCandidate.evidence.trim(),
-            ]
-          : [];
-
-    const threadTarget =
-      normalizedTarget || target;
-
-    const {
-      focus,
-      focusReason,
-    } = selectThreadFocus({
-      evidence,
-      fallback: threadTarget,
-    });
-
-    const thoughtPattern =
-      selectThoughtPattern({
+  if (reflectionAnalysis) {
+    const analyzedMainThread =
+      createMainThreadFromAnalysis({
+        reflectionAnalysis,
         latestRecord,
-        evidence,
-    });
+        recentEvidence,
+      });
 
-    return {
-        target: threadTarget,
-
-        reason:
-            "오늘 기록 안에서 실제로 등장했고, 가장 강한 반응으로 분석된 중심 흐름입니다.",
-
-        evidence,
-
-        focus,
-        focusReason,
-
-        thoughtPattern,
-    };
+    if (analyzedMainThread) {
+      return analyzedMainThread;
+    }
   }
 
-  /**
-   * Reaction Target과 오늘 기록의 표현이 정확히 일치하지 않을 때
-   * 생각, 기대, 집중 또는 작업 흐름이 드러난 문장을 보조 후보로 삼는다.
-   */
-  const fallbackSentence =
-    recentEvidence.find((sentence) =>
-      /기대|집중|하고 싶|중요|만족|몰입|작업|개발|시작/.test(
-        sentence
-      )
-    );
-
-  if (!fallbackSentence) {
-    return null;
-  }
-
-  const {
-    focus,
-    focusReason,
-  } = selectThreadFocus({
-    evidence: [fallbackSentence],
-    fallback: fallbackSentence,
+  return createMainThreadFromAIInsight({
+    latestRecord,
+    recentEvidence,
+    aiInsight,
   });
-
-  const fallbackEvidence = [
-    fallbackSentence,
-  ];
-
-  const thoughtPattern =
-    selectThoughtPattern({
-        latestRecord,
-        evidence: fallbackEvidence,
-  });
-
-  return {
-    target: fallbackSentence,
-
-    reason:
-        "최근 기록에서 단순한 완료 사실보다 생각이나 기대가 함께 표현된 문장을 중심 흐름으로 선택했습니다.",
-
-    evidence: fallbackEvidence,
-
-    focus,
-    focusReason,
-
-    thoughtPattern,
-  };
 };
 
 export const createQuestionContext = ({
   logs,
   loopContext,
   aiInsight,
+  reflectionAnalysis = null,
 }: {
   logs: DailyLog[];
   loopContext: ReflectionLoopContext;
   aiInsight: AIInsight | null;
+  reflectionAnalysis?:
+    | ReflectionContextAnalysis
+    | null;
 }): ReflectionQuestionContextV2 => {
   const latestLog =
     selectLatestLog(logs);
@@ -350,6 +525,7 @@ export const createQuestionContext = ({
       latestRecord,
       recentEvidence,
       aiInsight,
+      reflectionAnalysis,
     });
 
   return {
