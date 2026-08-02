@@ -3,7 +3,7 @@ import Script from "next/script";
 
 import "./globals.css";
 
-const siteUrl = "https://molip.help";
+const siteUrl = "https://www.molip.help";
 
 const siteDescription =
   "Molip는 매일의 기록에서 반복되는 반응을 발견해, 사용자가 자신이 무엇에 끌리고 몰입하는지 이해하도록 돕는 자기이해 기록 서비스입니다.";
