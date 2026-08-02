@@ -463,6 +463,10 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link href="/about" className="hover:text-slate-900">
+              Molip 소개
+            </Link>
+
             <Link href="/privacy" className="hover:text-slate-900">
               개인정보처리방침
             </Link>
