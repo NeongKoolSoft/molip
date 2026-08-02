@@ -148,13 +148,13 @@ export default function LandingPage() {
           </h1>
 
           <p className="mt-8 max-w-2xl break-keep text-lg leading-8 text-slate-600 sm:text-xl">
-            매일의 기록에서 반복되는 관심과 변화를 발견하고,
+            매일의 기록에서 반복되는 관심과 변화를 발견하고, 
             <br className="hidden sm:block" />
             내가 무엇에 끌리고 몰입하는지 이해해보세요.
           </p>
 
           <p className="mt-5 max-w-2xl break-keep text-base leading-7 text-slate-500">
-            Molip은 매일의 기록에서 반복되는 반응을 발견해,
+            Molip은 매일의 기록에서 반복되는 반응을 발견해, 
             <br className="hidden sm:block" />
             사용자가 자신이 무엇에 끌리고 몰입하는지 이해하도록 돕는
             자기이해 서비스입니다.
@@ -250,7 +250,7 @@ export default function LandingPage() {
             </h2>
 
             <p className="mt-5 break-keep leading-7 text-slate-600">
-              하루의 기록만 요약하는 데서 멈추지 않고,
+              하루의 기록만 요약하는 데서 멈추지 않고, 
               <br className="hidden sm:block" />
               기록과 기록 사이에 숨어 있는 반복과 변화를 살펴봅니다.
             </p>
@@ -294,7 +294,7 @@ export default function LandingPage() {
             </h2>
 
             <p className="mt-5 break-keep leading-7 text-slate-300">
-              특별한 일이 없어도 괜찮습니다.
+              특별한 일이 없어도 괜찮습니다. 
               <br className="hidden sm:block" />
               오늘 마음에 남은 순간부터 자유롭게 기록해보세요.
             </p>
