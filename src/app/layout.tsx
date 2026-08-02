@@ -55,13 +55,22 @@ export const metadata: Metadata = {
     title: "Molip | 몰입 발견을 돕는 자기이해 기록 서비스",
     description:
       "하루 1분 기록으로 반복되는 반응과 몰입의 신호를 발견해보세요.",
+    images: [
+      {
+        url: "/images/molip-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Molip — 당신은 무엇에 반복적으로 반응합니까?",
+      },
+    ],
   },
 
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Molip | 몰입 발견을 돕는 자기이해 기록 서비스",
     description:
       "하루 1분 기록으로 반복되는 반응과 몰입의 신호를 발견해보세요.",
+    images: ["/images/molip-og.png"],
   },
 
   robots: {
