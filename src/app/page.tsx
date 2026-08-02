@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const experienceItems = [
@@ -94,10 +95,18 @@ export default function LandingPage() {
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
           <Link
             href="/"
-            className="flex items-center gap-2 text-lg font-bold tracking-tight"
+            aria-label="Molip 홈으로 이동"
+            className="flex items-center gap-2"
           >
-            <span aria-hidden="true">🌱</span>
-            <span>Molip</span>
+            <Image
+              src="/images/molip-logo.png"
+              alt="Molip"
+              width={138}
+              height={48}
+              priority
+              className="h-9 w-auto object-contain sm:h-10"
+            />
+
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
               Beta
             </span>
