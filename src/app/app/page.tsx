@@ -270,10 +270,12 @@ export default function Home() {
         currentDraftKey
       );
 
-    if (savedDraft !== null) {
+    if (todayContent.trim()) {
+      setContent(todayContent);
+    } else if (savedDraft !== null) {
       setContent(savedDraft);
     } else {
-      setContent(todayContent);
+      setContent("");
     }
 
     setLogs(recentLogs);
@@ -334,12 +336,14 @@ export default function Home() {
               )
             : null;
 
-        if (savedDraft !== null) {
+        if (todayContent.trim()) {
+          setContent(todayContent);
+        } else if (savedDraft !== null) {
           setContent(savedDraft);
         } else {
-          setContent(todayContent);
+          setContent("");
         }
-
+        
         setLogs(recentLogs);
         setIsInitialContentLoaded(
           true
