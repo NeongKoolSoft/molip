@@ -45,6 +45,7 @@ import ImmersionDiscoveryV2Card from "@/components/ImmersionDiscoveryV2Card";
 import TodaysReflectionCard from "@/components/TodaysReflectionCard";
 import WeeklyReportCard from "@/components/WeeklyReportCard";
 import ReflectionLoopV3Card from "@/components/ReflectionLoopV3Card";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 
 declare global {
   interface Window {
@@ -798,6 +799,8 @@ export default function Home() {
             timelineVersion
           }
         />
+
+        <ScrollToTopButton />
       </div>
     </main>
   );
