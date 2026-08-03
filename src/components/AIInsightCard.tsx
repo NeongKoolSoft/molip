@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { DailyLog } from "@/types/dailyLog";
 import type { AIInsight } from "@/services/aiInsightService";
@@ -34,6 +38,7 @@ type AIInsightCardProps = {
   userId: string;
   logs: DailyLog[];
   refreshKey: number;
+  analysisRequestKey: number;
   onAnalysisComplete: () => void;
   onMeaningGrowthComplete: () => void;
   onTodaysReflectionComplete: () => void;
@@ -55,6 +60,7 @@ export default function AIInsightCard({
   userId,
   logs,
   refreshKey,
+  analysisRequestKey,
   onAnalysisComplete,
   onMeaningGrowthComplete,
   onTodaysReflectionComplete,
@@ -71,7 +77,10 @@ export default function AIInsightCard({
   const [
     showAllReactionTargets,
     setShowAllReactionTargets,
-  ] = useState(false);    
+  ] = useState(false);
+
+  const lastHandledRequestKeyRef =
+    useRef(0);
 
   const today = new Date()
     .toISOString()
@@ -168,6 +177,13 @@ export default function AIInsightCard({
     };
 
   const handleAnalyze = async () => {
+    if (
+      loading ||
+      todayLogs.length === 0
+    ) {
+      return;
+    }
+
     setInsight(null);
     setShowAllReactionTargets(false);
     setLoading(true);
@@ -229,13 +245,12 @@ export default function AIInsightCard({
       const data: AIInsight =
         await response.json();
 
-      setInsight(data);
-
       await saveAIAnalysis(
         userId,
         data
       );
 
+      setInsight(data);
       onAnalysisComplete();
 
       try {
@@ -255,6 +270,8 @@ export default function AIInsightCard({
         "AI 분석 오류:",
         error
       );
+
+      setInsight(null);
 
       setMessage(
         error instanceof Error
@@ -301,6 +318,26 @@ export default function AIInsightCard({
     };
   }, [userId, refreshKey]);
 
+  useEffect(() => {
+    if (
+      analysisRequestKey === 0 ||
+      todayLogs.length === 0 ||
+      lastHandledRequestKeyRef.current ===
+        analysisRequestKey
+    ) {
+      return;
+    }
+
+    lastHandledRequestKeyRef.current =
+      analysisRequestKey;
+
+    void handleAnalyze();
+
+    // analysisRequestKey가 변경될 때만
+    // 저장 후 자동 분석을 실행한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysisRequestKey]);
+
   const validReactionTargets =
     insight?.reaction_targets.filter(
       (item) =>
@@ -344,29 +381,56 @@ export default function AIInsightCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={handleAnalyze}
-        disabled={
-          loading ||
-          todayLogs.length === 0
-        }
-        className="mt-6 w-full rounded-xl bg-indigo-600 px-5 py-4 text-base font-bold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300"
-      >
-        {loading
-          ? "기록의 변화를 살펴보고 있습니다..."
-          : "기록에서 변화 발견하기"}
-      </button>
+      {loading && (
+        <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="animate-pulse text-lg"
+            >
+              🧠
+            </span>
 
-      {todayLogs.length === 0 && (
-        <p className="mt-3 text-center text-sm leading-6 text-slate-500">
-          오늘 기록을 저장하면 분석을 시작할 수 있습니다.
-        </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-indigo-700">
+                AI가 오늘 기록을 읽고 있습니다
+              </p>
+
+              <p className="mt-1 break-keep text-sm leading-6 text-slate-600">
+                기록에서 마음이 움직인 대상과
+                변화의 흐름을 살펴보는 중입니다.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
+
+      {!loading &&
+        !insight &&
+        todayLogs.length === 0 && (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+            <p className="break-keep text-sm leading-6 text-slate-500">
+              오늘 기록을 저장하면 AI 분석이
+              자동으로 시작됩니다.
+            </p>
+          </div>
+        )}
+
+      {!loading &&
+        !insight &&
+        todayLogs.length > 0 &&
+        !message && (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+            <p className="break-keep text-sm leading-6 text-slate-500">
+              기록을 저장하거나 수정하면 AI가
+              변화를 자동으로 살펴봅니다.
+            </p>
+          </div>
+        )}
 
       {message && (
         <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm leading-6 text-red-700">
+          <p className="break-keep text-sm leading-6 text-red-700">
             {message}
           </p>
         </div>
@@ -554,6 +618,31 @@ export default function AIInsightCard({
                 <p className="mt-3 break-keep text-base leading-8 text-slate-700">
                   {insight.summary}
                 </p>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-blue-200 pt-5">
+              <div className="flex items-start gap-3 px-1">
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 text-lg"
+                >
+                  👇
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-indigo-700">
+                    다음 단계
+                  </p>
+
+                  <p className="mt-3 break-keep text-lg font-bold leading-8 text-slate-900">
+                    아래 Reflection Loop에서
+                    <br />
+                    AI와 함께 오늘의 생각을
+                    <br />
+                    조금 더 이어가 보세요.
+                  </p>
+                </div>
               </div>
             </div>
           </article>

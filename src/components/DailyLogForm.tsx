@@ -57,7 +57,11 @@ export default function DailyLogForm({
       </button>
 
       {message && (
-        <p className="mt-4 text-center text-sm text-gray-600">{message}</p>
+        <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 text-center">
+          <p className="whitespace-pre-line break-keep text-sm leading-6 text-blue-900">
+            {message}
+          </p>
+        </div>
       )}
     </>
   );

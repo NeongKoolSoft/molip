@@ -325,14 +325,14 @@ export default function ReflectionLoopV3Card({
 
       {reflectionAnalysis && result && (
         <div className="mt-7 space-y-4">
-          <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-lg shadow-sm">
                 🧠
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-blue-700">
+                <p className="text-sm font-semibold text-slate-600">
                   AI가 발견한 중심 흐름
                 </p>
 
@@ -350,14 +350,14 @@ export default function ReflectionLoopV3Card({
             </div>
           </article>
 
-          <article className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-lg shadow-sm">
                 ✨
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-amber-800">
+                <p className="text-sm font-semibold text-slate-600">
                   조금 더 생각해 볼 지점
                 </p>
 

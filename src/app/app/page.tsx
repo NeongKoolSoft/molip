@@ -210,6 +210,11 @@ export default function Home() {
   ] = useState(0);
 
   const [
+    analysisRequestVersion,
+    setAnalysisRequestVersion,
+  ] = useState(0);
+
+  const [
     timelineVersion,
     setTimelineVersion,
   ] = useState(0);
@@ -609,14 +614,19 @@ export default function Home() {
           previous + 1
       );
 
+      setAnalysisRequestVersion(
+        (previous) =>
+          previous + 1
+      );
+
       setActiveReflectionQuestion(
         null
       );
 
       setMessage(
         previousLog
-          ? "이어 쓴 기록이 저장되었습니다. AI 분석을 다시 실행해 주세요."
-          : "오늘의 기록이 저장되었습니다. AI 분석을 실행해 주세요."
+          ? "✅ 수정된 기록이 저장되었습니다.\nAI가 기록의 변화를 살펴보고 있습니다."
+          : "✅ 오늘의 기록이 저장되었습니다.\nAI가 기록의 변화를 살펴보고 있습니다."
       );
     } catch (error) {
       console.error(error);
@@ -694,6 +704,9 @@ export default function Home() {
           logs={logs}
           refreshKey={
             analysisVersion
+          }
+          analysisRequestKey={
+            analysisRequestVersion
           }
           onAnalysisComplete={() => {
             setTimelineVersion(
