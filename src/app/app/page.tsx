@@ -24,19 +24,33 @@ import {
   getCurrentUser,
 } from "@/services/authService";
 
-import { loadUserPlan } from "@/services/userPlanService";
-import { deleteTodayAnalysis } from "@/services/aiAnalysisService";
-import { saveLogRevision } from "@/services/logRevisionService";
-import { deleteTodayMeaningGrowthAnalysis } from "@/services/meaningGrowthAnalysisService";
-import { deleteTodayTodaysReflection } from "@/services/todaysReflectionAnalysisService";
+import {
+  loadUserPlan,
+} from "@/services/userPlanService";
+
+import {
+  deleteTodayAnalysis,
+} from "@/services/aiAnalysisService";
+
+import {
+  saveLogRevision,
+} from "@/services/logRevisionService";
+
+import {
+  deleteTodayMeaningGrowthAnalysis,
+} from "@/services/meaningGrowthAnalysisService";
+
+import {
+  deleteTodayTodaysReflection,
+} from "@/services/todaysReflectionAnalysisService";
 
 import { supabase } from "@/lib/supabase";
 
+import TimelineSection from "@/components/TimelineSection";
 import LoginForm from "@/components/LoginForm";
 import DailyLogForm from "@/components/DailyLogForm";
 import RecentLogs from "@/components/RecentLogs";
 import AIInsightCard from "@/components/AIInsightCard";
-import ReflectionQuestionDevCard from "@/components/ReflectionQuestionDevCard";
 import ReactionTrendCard from "@/components/ReactionTrendCard";
 import ReactionTimelineCard from "@/components/ReactionTimelineCard";
 import GrowthSignalCard from "@/components/GrowthSignalCard";
@@ -52,7 +66,10 @@ declare global {
     gtag?: (
       command: "event",
       eventName: string,
-      parameters?: Record<string, unknown>
+      parameters?: Record<
+        string,
+        unknown
+      >
     ) => void;
   }
 }
@@ -123,8 +140,6 @@ function trackGoogleAdsSignup(
       lastSignInAt - createdAt
     );
 
-  // 계정 생성 직후의 최초 로그인만
-  // 가입으로 처리
   const isNewSignup =
     accountAge >= 0 &&
     accountAge <
@@ -181,17 +196,25 @@ export default function Home() {
   const [user, setUser] =
     useState<User | null>(null);
 
-  const [userPlan, setUserPlan] =
-    useState<UserPlan>("free");
+  const [
+    userPlan,
+    setUserPlan,
+  ] = useState<UserPlan>("free");
 
-  const [content, setContent] =
-    useState("");
+  const [
+    content,
+    setContent,
+  ] = useState("");
 
-  const [message, setMessage] =
-    useState("");
+  const [
+    message,
+    setMessage,
+  ] = useState("");
 
-  const [logs, setLogs] =
-    useState<DailyLog[]>([]);
+  const [
+    logs,
+    setLogs,
+  ] = useState<DailyLog[]>([]);
 
   const [
     isInitialContentLoaded,
@@ -245,22 +268,27 @@ export default function Home() {
       null
     );
 
-  const draftKey = useMemo(() => {
-    if (!user) {
-      return null;
-    }
+  const draftKey =
+    useMemo(() => {
+      if (!user) {
+        return null;
+      }
 
-    return `molip_daily_log_draft_${user.id}_${getLocalDateKey()}`;
-  }, [user]);
+      return `molip_daily_log_draft_${user.id}_${getLocalDateKey()}`;
+    }, [user]);
 
   const refreshLogs = async (
     userId: string
   ) => {
     const todayContent =
-      await loadTodayLog(userId);
+      await loadTodayLog(
+        userId
+      );
 
     const recentLogs =
-      await loadRecentLogs(userId);
+      await loadRecentLogs(
+        userId
+      );
 
     const currentDraftKey =
       `molip_daily_log_draft_${userId}_${getLocalDateKey()}`;
@@ -272,14 +300,19 @@ export default function Home() {
 
     if (todayContent.trim()) {
       setContent(todayContent);
-    } else if (savedDraft !== null) {
+    } else if (
+      savedDraft !== null
+    ) {
       setContent(savedDraft);
     } else {
       setContent("");
     }
 
     setLogs(recentLogs);
-    setIsInitialContentLoaded(true);
+
+    setIsInitialContentLoaded(
+      true
+    );
   };
 
   useEffect(() => {
@@ -293,68 +326,77 @@ export default function Home() {
       }
 
       setUser(currentUser);
-      setIsInitialContentLoaded(false);
+
+      setIsInitialContentLoaded(
+        false
+      );
+
       setActiveReflectionQuestion(
         null
       );
 
-      if (currentUser) {
-        trackGoogleAdsSignup(
-          currentUser
-        );
-
-        const [
-          todayContent,
-          recentLogs,
-          plan,
-        ] = await Promise.all([
-          loadTodayLog(
-            currentUser.id
-          ),
-          loadRecentLogs(
-            currentUser.id
-          ),
-          loadUserPlan(
-            currentUser.id
-          ),
-        ]);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setUserPlan(plan);
-
-        const currentDraftKey =
-          `molip_daily_log_draft_${currentUser.id}_${getLocalDateKey()}`;
-
-        const savedDraft =
-          typeof window !==
-          "undefined"
-            ? window.localStorage.getItem(
-                currentDraftKey
-              )
-            : null;
-
-        if (todayContent.trim()) {
-          setContent(todayContent);
-        } else if (savedDraft !== null) {
-          setContent(savedDraft);
-        } else {
-          setContent("");
-        }
-        
-        setLogs(recentLogs);
-        setIsInitialContentLoaded(
-          true
-        );
-      } else {
+      if (!currentUser) {
+        setUserPlan("free");
         setContent("");
         setLogs([]);
-        setIsInitialContentLoaded(
-          false
-        );
+
+        return;
       }
+
+      trackGoogleAdsSignup(
+        currentUser
+      );
+
+      const [
+        todayContent,
+        recentLogs,
+        plan,
+      ] = await Promise.all([
+        loadTodayLog(
+          currentUser.id
+        ),
+
+        loadRecentLogs(
+          currentUser.id
+        ),
+
+        loadUserPlan(
+          currentUser.id
+        ),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setUserPlan(plan);
+
+      const currentDraftKey =
+        `molip_daily_log_draft_${currentUser.id}_${getLocalDateKey()}`;
+
+      const savedDraft =
+        typeof window !==
+        "undefined"
+          ? window.localStorage.getItem(
+              currentDraftKey
+            )
+          : null;
+
+      if (todayContent.trim()) {
+        setContent(todayContent);
+      } else if (
+        savedDraft !== null
+      ) {
+        setContent(savedDraft);
+      } else {
+        setContent("");
+      }
+
+      setLogs(recentLogs);
+
+      setIsInitialContentLoaded(
+        true
+      );
     };
 
     const loadInitialUser =
@@ -374,16 +416,19 @@ export default function Home() {
         }
       };
 
-    loadInitialUser();
+    void loadInitialUser();
 
     const {
-      data: { subscription },
+      data: {
+        subscription,
+      },
     } =
       supabase.auth.onAuthStateChange(
         (_event, session) => {
           window.setTimeout(() => {
             applyUser(
-              session?.user ?? null
+              session?.user ??
+                null
             ).catch((error) => {
               console.error(
                 "로그인 상태 반영 실패:",
@@ -396,6 +441,7 @@ export default function Home() {
 
     return () => {
       isMounted = false;
+
       subscription.unsubscribe();
     };
   }, []);
@@ -413,11 +459,13 @@ export default function Home() {
         draftKey,
         content
       );
-    } else {
-      window.localStorage.removeItem(
-        draftKey
-      );
+
+      return;
     }
+
+    window.localStorage.removeItem(
+      draftKey
+    );
   }, [
     content,
     draftKey,
@@ -448,6 +496,7 @@ export default function Home() {
         setUserPlan("free");
         setContent("");
         setLogs([]);
+
         setMessage(
           "로그아웃되었습니다."
         );
@@ -481,30 +530,32 @@ export default function Home() {
 
     window.requestAnimationFrame(
       () => {
-        dailyLogFormRef.current?.scrollIntoView(
-          {
+        dailyLogFormRef.current
+          ?.scrollIntoView({
             behavior: "smooth",
             block: "start",
-          }
-        );
+          });
 
         window.setTimeout(() => {
           const input =
-            dailyLogFormRef.current?.querySelector<
-              HTMLTextAreaElement
-            >("textarea");
+            dailyLogFormRef.current
+              ?.querySelector<
+                HTMLTextAreaElement
+              >("textarea");
 
           input?.focus();
 
-          if (input) {
-            const cursorPosition =
-              input.value.length;
-
-            input.setSelectionRange(
-              cursorPosition,
-              cursorPosition
-            );
+          if (!input) {
+            return;
           }
+
+          const cursorPosition =
+            input.value.length;
+
+          input.setSelectionRange(
+            cursorPosition,
+            cursorPosition
+          );
         }, 500);
       }
     );
@@ -612,7 +663,9 @@ export default function Home() {
         );
       }
 
-      await refreshLogs(user.id);
+      await refreshLogs(
+        user.id
+      );
 
       setAnalysisVersion(
         (previous) =>
@@ -654,8 +707,8 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-lg">
+    <main className="min-h-screen bg-gray-50 py-6 sm:py-10">
+      <div className="mx-auto w-full max-w-xl rounded-2xl bg-white p-5 shadow-lg sm:p-8">
         <div
           ref={dailyLogFormRef}
           className="scroll-mt-6"
@@ -695,114 +748,163 @@ export default function Home() {
             onContentChange={
               setContent
             }
-            onSave={handleSave}
+            onSave={
+              handleSave
+            }
             onLogout={
               handleLogout
             }
           />
         </div>
 
-        <RecentLogs logs={logs} />
-
-        <AIInsightCard
-          userId={user.id}
+        <RecentLogs
           logs={logs}
-          refreshKey={
-            analysisVersion
-          }
-          analysisRequestKey={
-            analysisRequestVersion
-          }
-          onAnalysisComplete={() => {
-            setTimelineVersion(
-              (previous) => previous + 1
-            );
-
-            setWeeklyReportVersion(
-              (previous) => previous + 1
-            );
-
-            setReflectionLoopVersion(
-              (previous) => previous + 1
-            );
-          }}
-          onMeaningGrowthComplete={() =>
-            setMeaningGrowthVersion(
-              (previous) =>
-                previous + 1
-            )
-          }
-          onTodaysReflectionComplete={() =>
-            setTodaysReflectionVersion(
-              (previous) =>
-                previous + 1
-            )
-          }
         />
 
-        <ReflectionLoopV3Card
-          userId={user.id}
-          refreshKey={
-            reflectionLoopVersion
-          }
-          onContinueReflection={
-            handleContinueReflection
-          }
-        />
-        
-        {/*
-        <ReflectionQuestionDevCard
-          userId={user.id}
-        />
-        */}
-        
+        {/* 오늘: Free 핵심 경험 */}
+        <section className="mt-10">
+          <div className="mb-5">
+            <p className="text-sm font-semibold text-indigo-600">
+              오늘
+            </p>
 
-        <GrowthSignalCard
-          userId={user.id}
-          refreshKey={
-            analysisVersion
-          }
-        />
+            <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
+              오늘의 기록과 생각
+            </h2>
 
-        <TodaysReflectionCard
-          userId={user.id}
-          refreshKey={
-            todaysReflectionVersion
-          }
-        />
+            <p className="mt-2 break-keep text-sm leading-6 text-slate-600">
+              오늘 기록을 남기고,
+              AI가 읽은 흐름을 확인한
+              뒤 생각을 한 번 더
+              이어갑니다.
+            </p>
+          </div>
 
-        <MeaningGrowthCard
-          userId={user.id}
-          refreshKey={
-            meaningGrowthVersion
-          }
-        />
+          <AIInsightCard
+            userId={user.id}
+            logs={logs}
+            refreshKey={
+              analysisVersion
+            }
+            analysisRequestKey={
+              analysisRequestVersion
+            }
+            onAnalysisComplete={() => {
+              setTimelineVersion(
+                (previous) =>
+                  previous + 1
+              );
 
-        <ImmersionDiscoveryV2Card
-          userId={user.id}
-          refreshKey={
-            analysisVersion
-          }
-        />
+              setWeeklyReportVersion(
+                (previous) =>
+                  previous + 1
+              );
 
-        <WeeklyReportCard
-          userId={user.id}
-          plan={userPlan}
-          refreshKey={
-            weeklyReportVersion
-          }
-        />
+              setReflectionLoopVersion(
+                (previous) =>
+                  previous + 1
+              );
+            }}
+            onMeaningGrowthComplete={() =>
+              setMeaningGrowthVersion(
+                (previous) =>
+                  previous + 1
+              )
+            }
+            onTodaysReflectionComplete={() =>
+              setTodaysReflectionVersion(
+                (previous) =>
+                  previous + 1
+              )
+            }
+          />
 
-        <ReactionTrendCard
-          userId={user.id}
-        />
+          <ReflectionLoopV3Card
+            userId={user.id}
+            refreshKey={
+              reflectionLoopVersion
+            }
+            onContinueReflection={
+              handleContinueReflection
+            }
+          />
 
-        <ReactionTimelineCard
-          userId={user.id}
-          refreshKey={
-            timelineVersion
-          }
-        />
+          <TodaysReflectionCard
+            userId={user.id}
+            refreshKey={
+              todaysReflectionVersion
+            }
+          />
+        </section>
+
+        {/* 발견: Free */}
+        <TimelineSection
+          icon="🔍"
+          title="발견"
+          description="기록에서 반복해서 나타난 반응과 몰입 가능성을 살펴봅니다."
+        >
+          <GrowthSignalCard
+            userId={user.id}
+            refreshKey={
+              analysisVersion
+            }
+          />
+
+          <MeaningGrowthCard
+            userId={user.id}
+            refreshKey={
+              meaningGrowthVersion
+            }
+          />
+
+          <ImmersionDiscoveryV2Card
+            userId={user.id}
+            refreshKey={
+              analysisVersion
+            }
+          />     
+        </TimelineSection>
+
+        {/* 지난 7일: Plus */}
+        <TimelineSection
+          icon="📅"
+          title="지난 7일"
+          description="여러 날의 기록을 연결해 이번 주에 이어진 흐름을 돌아봅니다."
+          badge="Plus"
+        >
+          <WeeklyReportCard
+            userId={user.id}
+            plan={userPlan}
+            refreshKey={
+              weeklyReportVersion
+            }
+          />
+
+        </TimelineSection>
+
+        {/* 시간 속 변화: Plus */}
+        <TimelineSection
+          icon="🌱"
+          title="시간 속 변화"
+          description="시간이 지나며 반복된 반응과 변화의 방향을 연결해 살펴봅니다."
+          badge="Plus"
+        >
+          <ReactionTrendCard
+            userId={user.id}
+            plan={userPlan}
+            refreshKey={
+              timelineVersion
+            }
+          />
+
+          <ReactionTimelineCard
+            userId={user.id}
+            plan={userPlan}
+            refreshKey={
+              timelineVersion
+            }
+          />
+        </TimelineSection>
 
         <ScrollToTopButton />
       </div>

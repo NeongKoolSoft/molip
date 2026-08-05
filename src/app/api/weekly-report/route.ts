@@ -1,6 +1,6 @@
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { NextResponse } from "next/server";
 
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import { generateAIText } from "@/providers";
 
 import type {
@@ -9,11 +9,15 @@ import type {
   WeeklyReport,
 } from "@/types/weeklyReport";
 
-import type { WeeklyReportContext } from "@/services/weeklyReportService";
+import type {
+  WeeklyReportContext,
+} from "@/services/weeklyReportService";
 
 const MIN_RECORDED_DAYS = 2;
 
-const extractJson = (text: string): unknown => {
+const extractJson = (
+  text: string
+): unknown => {
   const cleaned = text
     .replace(/```json/gi, "")
     .replace(/```/g, "")
@@ -22,8 +26,11 @@ const extractJson = (text: string): unknown => {
   try {
     return JSON.parse(cleaned);
   } catch {
-    const firstBrace = cleaned.indexOf("{");
-    const lastBrace = cleaned.lastIndexOf("}");
+    const firstBrace =
+      cleaned.indexOf("{");
+
+    const lastBrace =
+      cleaned.lastIndexOf("}");
 
     if (
       firstBrace === -1 ||
@@ -36,7 +43,10 @@ const extractJson = (text: string): unknown => {
     }
 
     return JSON.parse(
-      cleaned.slice(firstBrace, lastBrace + 1)
+      cleaned.slice(
+        firstBrace,
+        lastBrace + 1
+      )
     );
   }
 };
@@ -44,19 +54,33 @@ const extractJson = (text: string): unknown => {
 const isWeeklyReportContext = (
   value: unknown
 ): value is WeeklyReportContext => {
-  if (!value || typeof value !== "object") {
+  if (
+    !value ||
+    typeof value !== "object"
+  ) {
     return false;
   }
 
-  const candidate = value as Record<string, unknown>;
+  const candidate =
+    value as Record<
+      string,
+      unknown
+    >;
 
   return (
-    typeof candidate.periodStart === "string" &&
-    typeof candidate.periodEnd === "string" &&
-    typeof candidate.recordedDays === "number" &&
-    Array.isArray(candidate.analyses) &&
-    typeof candidate.immersionDiscovery === "object" &&
-    candidate.immersionDiscovery !== null
+    typeof candidate.periodStart ===
+      "string" &&
+    typeof candidate.periodEnd ===
+      "string" &&
+    typeof candidate.recordedDays ===
+      "number" &&
+    Array.isArray(
+      candidate.analyses
+    ) &&
+    typeof candidate.immersionDiscovery ===
+      "object" &&
+    candidate.immersionDiscovery !==
+      null
   );
 };
 
@@ -64,46 +88,77 @@ const createPrimarySignal = (
   context: WeeklyReportContext
 ): WeeklyPrimarySignal | null => {
   const signal =
-    context.immersionDiscovery.primarySignal;
+    context.immersionDiscovery
+      .primarySignal;
 
   if (!signal) {
     return null;
   }
 
   return {
-    target: signal.target,
-    frequency: signal.frequency,
-    averageWeight: signal.averageWeight,
-    latestWeight: signal.latestWeight,
-    dominantType: signal.dominantType,
-    growthDirection: signal.growthDirection,
+    target:
+      signal.target,
+
+    frequency:
+      signal.frequency,
+
+    averageWeight:
+      signal.averageWeight,
+
+    latestWeight:
+      signal.latestWeight,
+
+    dominantType:
+      signal.dominantType,
+
+    growthDirection:
+      signal.growthDirection,
   };
 };
 
 const parseMeaningChange = (
   value: unknown
 ): WeeklyMeaningChange | null => {
-  if (!value || typeof value !== "object") {
+  if (
+    !value ||
+    typeof value !== "object"
+  ) {
     return null;
   }
 
-  const candidate = value as Record<string, unknown>;
+  const candidate =
+    value as Record<
+      string,
+      unknown
+    >;
 
-  const addedMeanings = Array.isArray(candidate.addedMeanings)
-    ? candidate.addedMeanings.filter(
-        (item): item is string =>
-          typeof item === "string" &&
-          item.trim().length > 0
-      )
-    .slice(0, 2)
-    : [];
+  const addedMeanings =
+    Array.isArray(
+      candidate.addedMeanings
+    )
+      ? candidate.addedMeanings
+          .filter(
+            (
+              item
+            ): item is string =>
+              typeof item ===
+                "string" &&
+              item.trim().length >
+                0
+          )
+          .slice(0, 2)
+      : [];
 
   return {
-    hasChange: candidate.hasChange === true,
+    hasChange:
+      candidate.hasChange === true,
+
     summary:
-      typeof candidate.summary === "string"
+      typeof candidate.summary ===
+      "string"
         ? candidate.summary.trim()
         : "",
+
     addedMeanings,
   };
 };
@@ -112,15 +167,17 @@ const getString = (
   value: unknown,
   fallback = ""
 ): string => {
-  return typeof value === "string" &&
+  if (
+    typeof value === "string" &&
     value.trim().length > 0
-    ? value.trim()
-    : fallback;
+  ) {
+    return value.trim();
+  }
+
+  return fallback;
 };
 
-const authorizePlusUser = async (
-  request: Request
-): Promise<
+type AuthorizationResult =
   | {
       ok: true;
       userId: string;
@@ -128,94 +185,189 @@ const authorizePlusUser = async (
   | {
       ok: false;
       response: NextResponse;
-    }
-> => {
+    };
+
+const authorizePlusUser = async (
+  request: Request
+): Promise<AuthorizationResult> => {
   const authorization =
-    request.headers.get("authorization");
+    request.headers.get(
+      "authorization"
+    );
 
   if (
     !authorization ||
-    !authorization.startsWith("Bearer ")
+    !authorization.startsWith(
+      "Bearer "
+    )
   ) {
     return {
       ok: false,
-      response: NextResponse.json(
-        {
-          error: "로그인이 필요합니다.",
-          code: "UNAUTHORIZED",
-        },
-        {
-          status: 401,
-        }
-      ),
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "로그인이 필요합니다.",
+
+            code:
+              "UNAUTHORIZED",
+          },
+          {
+            status: 401,
+          }
+        ),
     };
   }
 
-  const accessToken = authorization
-    .slice("Bearer ".length)
-    .trim();
+  const accessToken =
+    authorization
+      .slice(
+        "Bearer ".length
+      )
+      .trim();
 
   if (!accessToken) {
     return {
       ok: false,
-      response: NextResponse.json(
-        {
-          error: "로그인이 필요합니다.",
-          code: "UNAUTHORIZED",
-        },
-        {
-          status: 401,
-        }
-      ),
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "로그인이 필요합니다.",
+
+            code:
+              "UNAUTHORIZED",
+          },
+          {
+            status: 401,
+          }
+        ),
     };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase =
+    createSupabaseServerClient(
+      accessToken
+    );
 
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser(accessToken);
+  } =
+    await supabase.auth.getUser(
+      accessToken
+    );
 
-  if (userError || !user) {
+  if (
+    userError ||
+    !user
+  ) {
+    console.error(
+      "Weekly Report 사용자 인증 실패:",
+      userError
+    );
+
     return {
       ok: false,
-      response: NextResponse.json(
-        {
-          error: "로그인 정보가 유효하지 않습니다.",
-          code: "INVALID_SESSION",
-        },
-        {
-          status: 401,
-        }
-      ),
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "로그인 정보가 유효하지 않습니다.",
+
+            code:
+              "INVALID_SESSION",
+          },
+          {
+            status: 401,
+          }
+        ),
     };
   }
 
-  const { data: profile, error: profileError } =
-    await supabase
-      .from("profiles")
-      .select("plan")
-      .eq("id", user.id)
-      .maybeSingle();
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .maybeSingle();
 
   if (profileError) {
+    console.error(
+      "Weekly Report 프로필 조회 실패:",
+      profileError
+    );
+
     throw profileError;
   }
 
-  if (profile?.plan !== "plus") {
+  if (!profile) {
+    console.error(
+      "Weekly Report 프로필 없음:",
+      {
+        userId: user.id,
+      }
+    );
+
     return {
       ok: false,
-      response: NextResponse.json(
-        {
-          error:
-            "Weekly Report는 Molip Plus에서 제공됩니다.",
-          code: "PLUS_REQUIRED",
-        },
-        {
-          status: 403,
-        }
-      ),
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "사용자 플랜 정보를 찾을 수 없습니다.",
+
+            code:
+              "PROFILE_NOT_FOUND",
+          },
+          {
+            status: 403,
+          }
+        ),
+    };
+  }
+
+  const normalizedPlan =
+    typeof profile.plan ===
+    "string"
+      ? profile.plan
+          .trim()
+          .toLowerCase()
+      : "";
+
+  console.log(
+    "Weekly Report 플랜 확인:",
+    {
+      userId: user.id,
+      plan: normalizedPlan,
+    }
+  );
+
+  if (
+    normalizedPlan !== "plus"
+  ) {
+    return {
+      ok: false,
+
+      response:
+        NextResponse.json(
+          {
+            error:
+              "Weekly Report는 Molip Plus에서 제공됩니다.",
+
+            code:
+              "PLUS_REQUIRED",
+          },
+          {
+            status: 403,
+          }
+        ),
     };
   }
 
@@ -225,23 +377,37 @@ const authorizePlusUser = async (
   };
 };
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request
+) {
   try {
     const authorization =
-      await authorizePlusUser(request);
+      await authorizePlusUser(
+        request
+      );
 
     if (!authorization.ok) {
       return authorization.response;
     }
 
-    const body = await request.json();
-    const context = body.context as unknown;
+    const body =
+      await request.json();
 
-    if (!isWeeklyReportContext(context)) {
+    const context =
+      body.context as unknown;
+
+    if (
+      !isWeeklyReportContext(
+        context
+      )
+    ) {
       return NextResponse.json(
         {
           error:
             "올바른 Weekly Report Context가 필요합니다.",
+
+          code:
+            "INVALID_CONTEXT",
         },
         {
           status: 400,
@@ -249,24 +415,38 @@ export async function POST(request: Request) {
       );
     }
 
-    const primarySignal = createPrimarySignal(context);
+    const primarySignal =
+      createPrimarySignal(
+        context
+      );
 
     if (
-      context.recordedDays < MIN_RECORDED_DAYS ||
-      context.analyses.length < MIN_RECORDED_DAYS
+      context.recordedDays <
+        MIN_RECORDED_DAYS ||
+      context.analyses.length <
+        MIN_RECORDED_DAYS
     ) {
-      const notReadyReport: WeeklyReport = {
-        status: "not_ready",
+      const notReadyReport:
+        WeeklyReport = {
+        status:
+          "not_ready",
 
-        periodStart: context.periodStart,
-        periodEnd: context.periodEnd,
-        recordedDays: context.recordedDays,
+        periodStart:
+          context.periodStart,
+
+        periodEnd:
+          context.periodEnd,
+
+        recordedDays:
+          context.recordedDays,
 
         summary:
           "이번 주의 흐름을 연결하려면 기록이 조금 더 필요합니다.",
 
         primarySignal,
-        meaningChange: null,
+
+        meaningChange:
+          null,
 
         reflection:
           "하루의 기록도 의미가 있지만, 서로 다른 날의 반응이 쌓이면 한 주 동안 이어진 흐름을 더 분명하게 발견할 수 있습니다.",
@@ -275,7 +455,9 @@ export async function POST(request: Request) {
           "이번 주에 다시 기록해 보고 싶은 순간은 무엇인가요?",
       };
 
-      return NextResponse.json(notReadyReport);
+      return NextResponse.json(
+        notReadyReport
+      );
     }
 
     const prompt = `
@@ -453,7 +635,11 @@ ${context.recordedDays}
 
 서버가 계산한 Primary Signal:
 
-${JSON.stringify(primarySignal, null, 2)}
+${JSON.stringify(
+  primarySignal,
+  null,
+  2
+)}
 
 Immersion Discovery 결과:
 
@@ -465,21 +651,30 @@ ${JSON.stringify(
 
 최근 7일 AI 분석:
 
-${JSON.stringify(context.analyses, null, 2)}
+${JSON.stringify(
+  context.analyses,
+  null,
+  2
+)}
 `;
 
-    const text = await generateAIText(prompt);
+    const text =
+      await generateAIText(
+        prompt
+      );
 
     console.log(
       "Weekly Report MVP raw response:",
       text
     );
 
-    const parsed = extractJson(text);
+    const parsed =
+      extractJson(text);
 
     if (
       !parsed ||
-      typeof parsed !== "object" ||
+      typeof parsed !==
+        "object" ||
       Array.isArray(parsed)
     ) {
       throw new Error(
@@ -487,44 +682,61 @@ ${JSON.stringify(context.analyses, null, 2)}
       );
     }
 
-    const result = parsed as Record<string, unknown>;
+    const result =
+      parsed as Record<
+        string,
+        unknown
+      >;
 
-    const summary = getString(
-      result.summary,
-      "이번 주 기록에서는 여러 반응과 생각이 이어졌습니다."
-    );
+    const summary =
+      getString(
+        result.summary,
+        "이번 주 기록에서는 여러 반응과 생각이 이어졌습니다."
+      );
 
-    const reflection = getString(
-      result.reflection,
-      "이번 주 기록에서는 반복해서 마음에 남은 대상과 그 주변의 생각이 함께 나타났습니다."
-    );
+    const reflection =
+      getString(
+        result.reflection,
+        "이번 주 기록에서는 반복해서 마음에 남은 대상과 그 주변의 생각이 함께 나타났습니다."
+      );
 
-    const nextQuestion = getString(
-      result.nextQuestion,
-      "이번 주에 가장 오래 마음에 남은 순간은 무엇이었나요?"
-    );
+    const nextQuestion =
+      getString(
+        result.nextQuestion,
+        "이번 주에 가장 오래 마음에 남은 순간은 무엇이었나요?"
+      );
 
-    const report: WeeklyReport = {
-      status: "ready",
+    const report:
+      WeeklyReport = {
+      status:
+        "ready",
 
-      periodStart: context.periodStart,
-      periodEnd: context.periodEnd,
-      recordedDays: context.recordedDays,
+      periodStart:
+        context.periodStart,
+
+      periodEnd:
+        context.periodEnd,
+
+      recordedDays:
+        context.recordedDays,
 
       summary,
 
       primarySignal,
 
-      meaningChange: parseMeaningChange(
-        result.meaningChange
-      ),
+      meaningChange:
+        parseMeaningChange(
+          result.meaningChange
+        ),
 
       reflection,
 
       nextQuestion,
     };
 
-    return NextResponse.json(report);
+    return NextResponse.json(
+      report
+    );
   } catch (error) {
     console.error(
       "Weekly Report 생성 오류:",
@@ -536,23 +748,37 @@ ${JSON.stringify(context.analyses, null, 2)}
         ? error.message
         : "알 수 없는 오류";
 
+    const normalizedDetail =
+      detail.toLowerCase();
+
     const isQuotaExceeded =
       detail.includes("429") ||
-      detail.includes("RESOURCE_EXHAUSTED") ||
-      detail.toLowerCase().includes("quota");
+      detail.includes(
+        "RESOURCE_EXHAUSTED"
+      ) ||
+      normalizedDetail.includes(
+        "quota"
+      );
 
     return NextResponse.json(
       {
-        error: isQuotaExceeded
-          ? "AI 사용 한도가 잠시 초과되었습니다."
-          : "Weekly Report 생성에 실패했습니다.",
+        error:
+          isQuotaExceeded
+            ? "AI 사용 한도가 잠시 초과되었습니다."
+            : "Weekly Report 생성에 실패했습니다.",
+
         detail,
-        code: isQuotaExceeded
-          ? "AI_QUOTA_EXCEEDED"
-          : "WEEKLY_REPORT_GENERATION_FAILED",
+
+        code:
+          isQuotaExceeded
+            ? "AI_QUOTA_EXCEEDED"
+            : "WEEKLY_REPORT_GENERATION_FAILED",
       },
       {
-        status: isQuotaExceeded ? 429 : 500,
+        status:
+          isQuotaExceeded
+            ? 429
+            : 500,
       }
     );
   }
