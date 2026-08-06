@@ -19,56 +19,84 @@ type AIAnalysisRow = {
   };
 };
 
-export async function loadReactionTrends(userId: string): Promise<ReactionTrend[]> {
+export async function loadReactionTrends(
+  userId: string
+): Promise<ReactionTrend[]> {
   const { data, error } = await supabase
     .from("ai_analyses")
     .select("log_date, result")
     .eq("user_id", userId)
-    .order("log_date", { ascending: true })
+    .order("log_date", { ascending: false })
     .limit(14);
 
   if (error) {
     throw error;
   }
 
-  const rows = (data ?? []) as AIAnalysisRow[];
+  const rows = ((data ?? []) as AIAnalysisRow[])
+    .sort((a, b) =>
+      a.log_date.localeCompare(b.log_date)
+    );
 
-  const grouped = new Map<string, { weights: number[]; dates: string[] }>();
+  const grouped = new Map<
+    string,
+    {
+      weights: number[];
+      dates: string[];
+    }
+  >();
 
   rows.forEach((row) => {
-    const targets = row.result?.reaction_targets ?? [];
+    const targets =
+      row.result?.reaction_targets ?? [];
 
     targets.forEach((target) => {
-      if (!target.normalized_target || typeof target.weight !== "number") {
+      if (
+        !target.normalized_target ||
+        typeof target.weight !== "number"
+      ) {
         return;
       }
 
-      const current = grouped.get(target.normalized_target) ?? {
-        weights: [],
-        dates: [],
-      };
+      const current =
+        grouped.get(target.normalized_target) ?? {
+          weights: [],
+          dates: [],
+        };
 
       current.weights.push(target.weight);
       current.dates.push(row.log_date);
 
-      grouped.set(target.normalized_target, current);
+      grouped.set(
+        target.normalized_target,
+        current
+      );
     });
   });
 
   return Array.from(grouped.entries())
     .map(([target, value]) => {
       const count = value.weights.length;
+
       const avgWeight =
-        value.weights.reduce((sum, weight) => sum + weight, 0) / count;
+        value.weights.reduce(
+          (sum, weight) => sum + weight,
+          0
+        ) / count;
 
       const first = value.weights[0];
-      const last = value.weights[value.weights.length - 1];
+      const last =
+        value.weights[value.weights.length - 1];
 
-      let trend: ReactionTrend["trend"] = "stable";
+      let trend: ReactionTrend["trend"] =
+        "stable";
 
       if (count >= 2) {
-        if (last - first >= 0.1) trend = "increasing";
-        else if (first - last >= 0.1) trend = "decreasing";
+        if (last - first >= 0.1) {
+          trend = "increasing";
+        } else if (first - last >= 0.1) {
+          trend = "decreasing";
+        }
       }
 
       return {
@@ -78,6 +106,9 @@ export async function loadReactionTrends(userId: string): Promise<ReactionTrend[
         trend,
       };
     })
-    .sort((a, b) => b.avgWeight - a.avgWeight)
+    .sort(
+      (a, b) =>
+        b.avgWeight - a.avgWeight
+    )
     .slice(0, 5);
 }

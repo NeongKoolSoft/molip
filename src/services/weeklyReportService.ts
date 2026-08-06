@@ -1,11 +1,28 @@
 import { supabase } from "@/lib/supabase";
 
-import { getRecentAnalyses } from "@/services/aiAnalysisService";
-import { loadImmersionDiscoveryV2 } from "@/services/immersionDiscoveryV2Service";
+import {
+  getRecentAnalyses,
+} from "@/services/aiAnalysisService";
 
-import type { AIInsight } from "@/services/aiInsightService";
-import type { ImmersionDiscoveryV2 } from "@/types/immersionDiscoveryV2";
-import type { WeeklyReport } from "@/types/weeklyReport";
+import {
+  loadImmersionDiscoveryV2,
+} from "@/services/immersionDiscoveryV2Service";
+
+import {
+  getToday,
+} from "@/services/dailyLogService";
+
+import type {
+  AIInsight,
+} from "@/services/aiInsightService";
+
+import type {
+  ImmersionDiscoveryV2,
+} from "@/types/immersionDiscoveryV2";
+
+import type {
+  WeeklyReport,
+} from "@/types/weeklyReport";
 
 export type WeeklyAnalysisItem = {
   logDate: string;
@@ -16,31 +33,66 @@ export type WeeklyReportContext = {
   periodStart: string;
   periodEnd: string;
   recordedDays: number;
-
   analyses: WeeklyAnalysisItem[];
   immersionDiscovery: ImmersionDiscoveryV2;
 };
 
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+const subtractDaysFromDateKey = (
+  dateKey: string,
+  days: number
+): string => {
+  const [
+    yearText,
+    monthText,
+    dayText,
+  ] = dateKey.split("-");
 
-  return `${year}-${month}-${day}`;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    throw new Error(
+      `올바르지 않은 날짜 형식입니다: ${dateKey}`
+    );
+  }
+
+  const date = new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    )
+  );
+
+  date.setUTCDate(
+    date.getUTCDate() - days
+  );
+
+  return date
+    .toISOString()
+    .slice(0, 10);
 };
 
 const getWeeklyPeriod = (): {
   periodStart: string;
   periodEnd: string;
 } => {
-  const endDate = new Date();
-  const startDate = new Date(endDate);
+  const periodEnd = getToday();
 
-  startDate.setDate(endDate.getDate() - 6);
+  const periodStart =
+    subtractDaysFromDateKey(
+      periodEnd,
+      6
+    );
 
   return {
-    periodStart: formatLocalDate(startDate),
-    periodEnd: formatLocalDate(endDate),
+    periodStart,
+    periodEnd,
   };
 };
 
@@ -49,12 +101,19 @@ const loadRecordedDays = async (
   periodStart: string,
   periodEnd: string
 ): Promise<number> => {
-  const { data, error } = await supabase
-    .from("daily_logs")
-    .select("log_date")
-    .eq("user_id", userId)
-    .gte("log_date", periodStart)
-    .lte("log_date", periodEnd);
+  const { data, error } =
+    await supabase
+      .from("daily_logs")
+      .select("log_date")
+      .eq("user_id", userId)
+      .gte(
+        "log_date",
+        periodStart
+      )
+      .lte(
+        "log_date",
+        periodEnd
+      );
 
   if (error) {
     throw error;
@@ -62,44 +121,73 @@ const loadRecordedDays = async (
 
   const uniqueDates = new Set(
     (data ?? [])
-      .map((item) => item.log_date)
+      .map(
+        (item) =>
+          item.log_date
+      )
       .filter(
-        (logDate): logDate is string =>
-          typeof logDate === "string" && logDate.length > 0
+        (
+          logDate
+        ): logDate is string =>
+          typeof logDate ===
+            "string" &&
+          logDate.length > 0
       )
   );
 
   return uniqueDates.size;
 };
 
-export const loadWeeklyReportContext = async (
-  userId: string
-): Promise<WeeklyReportContext> => {
-  const { periodStart, periodEnd } = getWeeklyPeriod();
+export const loadWeeklyReportContext =
+  async (
+    userId: string
+  ): Promise<WeeklyReportContext> => {
+    const {
+      periodStart,
+      periodEnd,
+    } = getWeeklyPeriod();
 
-  const [
-    analyses,
-    immersionDiscovery,
-    recordedDays,
-  ] = await Promise.all([
-    getRecentAnalyses(userId, 7),
-    loadImmersionDiscoveryV2(userId, 7),
-    loadRecordedDays(userId, periodStart, periodEnd),
-  ]);
+    const [
+      analyses,
+      immersionDiscovery,
+      recordedDays,
+    ] = await Promise.all([
+      getRecentAnalyses(
+        userId,
+        7
+      ),
 
-  return {
-    periodStart,
-    periodEnd,
-    recordedDays,
+      loadImmersionDiscoveryV2(
+        userId,
+        7
+      ),
 
-    analyses: analyses.map((analysis) => ({
-      logDate: analysis.logDate,
-      result: analysis.result,
-    })),
+      loadRecordedDays(
+        userId,
+        periodStart,
+        periodEnd
+      ),
+    ]);
 
-    immersionDiscovery,
+    return {
+      periodStart,
+      periodEnd,
+      recordedDays,
+
+      analyses:
+        analyses.map(
+          (analysis) => ({
+            logDate:
+              analysis.logDate,
+
+            result:
+              analysis.result,
+          })
+        ),
+
+      immersionDiscovery,
+    };
   };
-};
 
 export const createEmptyWeeklyReport = (
   context: WeeklyReportContext
@@ -107,9 +195,14 @@ export const createEmptyWeeklyReport = (
   return {
     status: "not_ready",
 
-    periodStart: context.periodStart,
-    periodEnd: context.periodEnd,
-    recordedDays: context.recordedDays,
+    periodStart:
+      context.periodStart,
+
+    periodEnd:
+      context.periodEnd,
+
+    recordedDays:
+      context.recordedDays,
 
     summary: "",
     primarySignal: null,
@@ -119,72 +212,104 @@ export const createEmptyWeeklyReport = (
   };
 };
 
-export const generateWeeklyReport = async (
-  context: WeeklyReportContext
-): Promise<WeeklyReport> => {
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
+export const generateWeeklyReport =
+  async (
+    context: WeeklyReportContext
+  ): Promise<WeeklyReport> => {
+    const {
+      data: {
+        session,
+      },
 
-  if (sessionError) {
-    throw sessionError;
-  }
+      error:
+        sessionError,
+    } =
+      await supabase.auth.getSession();
 
-  if (!session?.access_token) {
-    throw new Error("로그인 정보가 없습니다.");
-  }
-
-  const response = await fetch("/api/weekly-report", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({
-      context,
-    }),
-  });
-
-  const responseText = await response.text();
-
-  if (!response.ok) {
-    console.error(
-      "Weekly Report API 상태:",
-      response.status
-    );
-    console.error(
-      "Weekly Report API 원문:",
-      responseText
-    );
-
-    let errorMessage =
-      `Weekly Report API 오류 (${response.status})`;
-
-    try {
-      const errorBody = JSON.parse(responseText);
-
-      errorMessage =
-        errorBody.detail ??
-        errorBody.error ??
-        errorMessage;
-    } catch {
-      // HTML 오류 응답일 수 있다.
+    if (sessionError) {
+      throw sessionError;
     }
 
-    throw new Error(errorMessage);
-  }
+    if (
+      !session?.access_token
+    ) {
+      throw new Error(
+        "로그인 정보가 없습니다."
+      );
+    }
 
-  try {
-    return JSON.parse(responseText) as WeeklyReport;
-  } catch {
-    console.error(
-      "Weekly Report 응답이 JSON이 아닙니다:",
-      responseText
-    );
+    const response =
+      await fetch(
+        "/api/weekly-report",
+        {
+          method: "POST",
 
-    throw new Error(
-      "Weekly Report 응답 형식이 올바르지 않습니다."
-    );
-  }
-};
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${session.access_token}`,
+          },
+
+          body:
+            JSON.stringify({
+              context,
+            }),
+        }
+      );
+
+    const responseText =
+      await response.text();
+
+    if (!response.ok) {
+      console.error(
+        "Weekly Report API 상태:",
+        response.status
+      );
+
+      console.error(
+        "Weekly Report API 원문:",
+        responseText
+      );
+
+      let errorMessage =
+        `Weekly Report API 오류 (${response.status})`;
+
+      try {
+        const errorBody =
+          JSON.parse(
+            responseText
+          ) as {
+            detail?: string;
+            error?: string;
+          };
+
+        errorMessage =
+          errorBody.detail ??
+          errorBody.error ??
+          errorMessage;
+      } catch {
+        // HTML 또는 비 JSON 오류 응답일 수 있다.
+      }
+
+      throw new Error(
+        errorMessage
+      );
+    }
+
+    try {
+      return JSON.parse(
+        responseText
+      ) as WeeklyReport;
+    } catch {
+      console.error(
+        "Weekly Report 응답이 JSON이 아닙니다:",
+        responseText
+      );
+
+      throw new Error(
+        "Weekly Report 응답 형식이 올바르지 않습니다."
+      );
+    }
+  };
