@@ -4,6 +4,10 @@ import { useState } from "react";
 
 import type { DailyLog } from "@/types/dailyLog";
 
+import {
+  getToday,
+} from "@/services/dailyLogService";
+
 type RecentLogsProps = {
   logs: DailyLog[];
 };
@@ -23,7 +27,9 @@ function LogCard({
         </p>
       )}
 
-      <p className="text-sm text-gray-500">{log.log_date}</p>
+      <p className="text-sm text-gray-500">
+        {log.log_date}
+      </p>
 
       <p className="mt-3 whitespace-pre-line leading-7 text-gray-800">
         {log.content}
@@ -35,37 +41,72 @@ function LogCard({
 export default function RecentLogs({
   logs,
 }: RecentLogsProps) {
-  const [showPrevious, setShowPrevious] = useState(false);
+  const [
+    showPrevious,
+    setShowPrevious,
+  ] = useState(false);
 
   if (logs.length === 0) {
     return null;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getToday();
+
+  const sortedLogs = [
+    ...logs,
+  ].sort((a, b) =>
+    b.log_date.localeCompare(
+      a.log_date
+    )
+  );
 
   const todayLog =
-    logs.find((log) => log.log_date === today) ?? logs[0];
+    sortedLogs.find(
+      (log) =>
+        log.log_date === today
+    ) ?? null;
 
-  const previousLogs = logs.filter(
-    (log) => log.id !== todayLog.id
-  );
+  const previousLogs =
+    sortedLogs.filter(
+      (log) =>
+        log.log_date !== today
+    );
 
   return (
     <section className="mt-10">
-      <h2 className="text-2xl font-bold">최근 기록</h2>
+      <h2 className="text-2xl font-bold">
+        최근 기록
+      </h2>
 
-      <div className="mt-5">
-        <LogCard log={todayLog} isToday />
-      </div>
+      {todayLog ? (
+        <div className="mt-5">
+          <LogCard
+            log={todayLog}
+            isToday
+          />
+        </div>
+      ) : (
+        <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm leading-6 text-gray-500">
+            아직 오늘 작성한 기록이
+            없습니다.
+          </p>
+        </div>
+      )}
 
       {previousLogs.length > 0 && (
         <div className="mt-4">
           <button
             type="button"
             onClick={() =>
-              setShowPrevious((previous) => !previous)
+              setShowPrevious(
+                (previous) =>
+                  !previous
+              )
             }
-            aria-expanded={showPrevious}
+            aria-expanded={
+              showPrevious
+            }
             className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
           >
             <span>
@@ -76,7 +117,9 @@ export default function RecentLogs({
 
             <span
               className={`transition-transform ${
-                showPrevious ? "rotate-180" : ""
+                showPrevious
+                  ? "rotate-180"
+                  : ""
               }`}
               aria-hidden="true"
             >
@@ -86,9 +129,14 @@ export default function RecentLogs({
 
           {showPrevious && (
             <div className="mt-4 space-y-4">
-              {previousLogs.map((log) => (
-                <LogCard key={log.id} log={log} />
-              ))}
+              {previousLogs.map(
+                (log) => (
+                  <LogCard
+                    key={log.id}
+                    log={log}
+                  />
+                )
+              )}
             </div>
           )}
         </div>

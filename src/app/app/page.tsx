@@ -7,9 +7,17 @@ import {
   useState,
 } from "react";
 
-import type { User } from "@supabase/supabase-js";
-import type { UserPlan } from "@/types/userPlan";
-import type { DailyLog } from "@/types/dailyLog";
+import type {
+  User,
+} from "@supabase/supabase-js";
+
+import type {
+  UserPlan,
+} from "@/types/userPlan";
+
+import type {
+  DailyLog,
+} from "@/types/dailyLog";
 
 import {
   loadTodayLog,
@@ -44,7 +52,9 @@ import {
   deleteTodayTodaysReflection,
 } from "@/services/todaysReflectionAnalysisService";
 
-import { supabase } from "@/lib/supabase";
+import {
+  supabase,
+} from "@/lib/supabase";
 
 import TimelineSection from "@/components/TimelineSection";
 import LoginForm from "@/components/LoginForm";
@@ -121,9 +131,10 @@ function trackGoogleAdsSignup(
     return;
   }
 
-  const createdAt = new Date(
-    currentUser.created_at
-  ).getTime();
+  const createdAt =
+    new Date(
+      currentUser.created_at
+    ).getTime();
 
   const lastSignInAt =
     currentUser.last_sign_in_at
@@ -137,7 +148,8 @@ function trackGoogleAdsSignup(
 
   const creationLoginGap =
     Math.abs(
-      lastSignInAt - createdAt
+      lastSignInAt -
+        createdAt
     );
 
   const isNewSignup =
@@ -176,96 +188,125 @@ function trackGoogleAdsSignup(
 }
 
 function getLocalDateKey(): string {
-  const now = new Date();
-
-  const year =
-    now.getFullYear();
-
-  const month = String(
-    now.getMonth() + 1
-  ).padStart(2, "0");
-
-  const day = String(
-    now.getDate()
-  ).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone:
+        "Asia/Seoul",
+    }
+  ).format(new Date());
 }
 
 export default function Home() {
-  const [user, setUser] =
-    useState<User | null>(null);
+  const [
+    user,
+    setUser,
+  ] =
+    useState<User | null>(
+      null
+    );
 
   const [
     userPlan,
     setUserPlan,
-  ] = useState<UserPlan>("free");
+  ] =
+    useState<UserPlan>(
+      "free"
+    );
+
+  const [
+    currentDateKey,
+    setCurrentDateKey,
+  ] =
+    useState(
+      () =>
+        getLocalDateKey()
+    );
 
   const [
     content,
     setContent,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     message,
     setMessage,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     logs,
     setLogs,
-  ] = useState<DailyLog[]>([]);
+  ] =
+    useState<
+      DailyLog[]
+    >([]);
 
   const [
     isInitialContentLoaded,
     setIsInitialContentLoaded,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     activeReflectionQuestion,
     setActiveReflectionQuestion,
-  ] = useState<string | null>(
-    null
-  );
+  ] =
+    useState<
+      string | null
+    >(null);
 
   const [
     analysisVersion,
     setAnalysisVersion,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const [
     analysisRequestVersion,
     setAnalysisRequestVersion,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const [
     timelineVersion,
     setTimelineVersion,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const [
     meaningGrowthVersion,
     setMeaningGrowthVersion,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const [
     todaysReflectionVersion,
     setTodaysReflectionVersion,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const [
     weeklyReportVersion,
     setWeeklyReportVersion,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const [
     reflectionLoopVersion,
     setReflectionLoopVersion,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const dailyLogFormRef =
-    useRef<HTMLDivElement | null>(
-      null
+    useRef<
+      HTMLDivElement | null
+    >(null);
+
+  const previousDateKeyRef =
+    useRef(
+      currentDateKey
     );
 
   const draftKey =
@@ -274,130 +315,161 @@ export default function Home() {
         return null;
       }
 
-      return `molip_daily_log_draft_${user.id}_${getLocalDateKey()}`;
-    }, [user]);
+      return `molip_daily_log_draft_${user.id}_${currentDateKey}`;
+    }, [
+      user,
+      currentDateKey,
+    ]);
 
-  const refreshLogs = async (
-    userId: string
+  const applyLoadedDailyData = (
+    userId: string,
+    todayContent: string,
+    recentLogs: DailyLog[],
+    dateKey: string
   ) => {
-    const todayContent =
-      await loadTodayLog(
-        userId
-      );
-
-    const recentLogs =
-      await loadRecentLogs(
-        userId
-      );
-
     const currentDraftKey =
-      `molip_daily_log_draft_${userId}_${getLocalDateKey()}`;
+      `molip_daily_log_draft_${userId}_${dateKey}`;
 
     const savedDraft =
       window.localStorage.getItem(
         currentDraftKey
       );
 
-    if (todayContent.trim()) {
-      setContent(todayContent);
+    if (
+      todayContent.trim()
+    ) {
+      setContent(
+        todayContent
+      );
     } else if (
       savedDraft !== null
     ) {
-      setContent(savedDraft);
+      setContent(
+        savedDraft
+      );
     } else {
       setContent("");
     }
 
-    setLogs(recentLogs);
+    setLogs(
+      recentLogs
+    );
 
     setIsInitialContentLoaded(
       true
     );
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const applyUser = async (
-      currentUser: User | null
+  const refreshLogs =
+    async (
+      userId: string,
+      dateKey =
+        getLocalDateKey()
     ) => {
-      if (!isMounted) {
-        return;
-      }
-
-      setUser(currentUser);
-
-      setIsInitialContentLoaded(
-        false
-      );
-
-      setActiveReflectionQuestion(
-        null
-      );
-
-      if (!currentUser) {
-        setUserPlan("free");
-        setContent("");
-        setLogs([]);
-
-        return;
-      }
-
-      trackGoogleAdsSignup(
-        currentUser
-      );
-
       const [
         todayContent,
         recentLogs,
-        plan,
-      ] = await Promise.all([
-        loadTodayLog(
-          currentUser.id
-        ),
+      ] =
+        await Promise.all([
+          loadTodayLog(
+            userId
+          ),
+          loadRecentLogs(
+            userId
+          ),
+        ]);
 
-        loadRecentLogs(
-          currentUser.id
-        ),
-
-        loadUserPlan(
-          currentUser.id
-        ),
-      ]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      setUserPlan(plan);
-
-      const currentDraftKey =
-        `molip_daily_log_draft_${currentUser.id}_${getLocalDateKey()}`;
-
-      const savedDraft =
-        typeof window !==
-        "undefined"
-          ? window.localStorage.getItem(
-              currentDraftKey
-            )
-          : null;
-
-      if (todayContent.trim()) {
-        setContent(todayContent);
-      } else if (
-        savedDraft !== null
-      ) {
-        setContent(savedDraft);
-      } else {
-        setContent("");
-      }
-
-      setLogs(recentLogs);
-
-      setIsInitialContentLoaded(
-        true
+      applyLoadedDailyData(
+        userId,
+        todayContent,
+        recentLogs,
+        dateKey
       );
     };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const applyUser =
+      async (
+        currentUser:
+          User | null
+      ) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setUser(
+          currentUser
+        );
+
+        setIsInitialContentLoaded(
+          false
+        );
+
+        setActiveReflectionQuestion(
+          null
+        );
+
+        if (!currentUser) {
+          setUserPlan(
+            "free"
+          );
+
+          setContent("");
+          setLogs([]);
+
+          return;
+        }
+
+        trackGoogleAdsSignup(
+          currentUser
+        );
+
+        const latestDateKey =
+          getLocalDateKey();
+
+        setCurrentDateKey(
+          latestDateKey
+        );
+
+        previousDateKeyRef.current =
+          latestDateKey;
+
+        const [
+          todayContent,
+          recentLogs,
+          plan,
+        ] =
+          await Promise.all([
+            loadTodayLog(
+              currentUser.id
+            ),
+
+            loadRecentLogs(
+              currentUser.id
+            ),
+
+            loadUserPlan(
+              currentUser.id
+            ),
+          ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setUserPlan(
+          plan
+        );
+
+        applyLoadedDailyData(
+          currentUser.id,
+          todayContent,
+          recentLogs,
+          latestDateKey
+        );
+      };
 
     const loadInitialUser =
       async () => {
@@ -424,18 +496,28 @@ export default function Home() {
       },
     } =
       supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          window.setTimeout(() => {
-            applyUser(
-              session?.user ??
-                null
-            ).catch((error) => {
-              console.error(
-                "로그인 상태 반영 실패:",
-                error
+        (
+          _event,
+          session
+        ) => {
+          window.setTimeout(
+            () => {
+              applyUser(
+                session?.user ??
+                  null
+              ).catch(
+                (
+                  error
+                ) => {
+                  console.error(
+                    "로그인 상태 반영 실패:",
+                    error
+                  );
+                }
               );
-            });
-          }, 0);
+            },
+            0
+          );
         }
       );
 
@@ -447,6 +529,203 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const checkDateChange =
+      () => {
+        const nextDateKey =
+          getLocalDateKey();
+
+        setCurrentDateKey(
+          (
+            previousDateKey
+          ) =>
+            previousDateKey ===
+            nextDateKey
+              ? previousDateKey
+              : nextDateKey
+        );
+      };
+
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          checkDateChange();
+        }
+      };
+
+    const intervalId =
+      window.setInterval(
+        checkDateChange,
+        60 * 1000
+      );
+
+    window.addEventListener(
+      "focus",
+      checkDateChange
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    checkDateChange();
+
+    return () => {
+      window.clearInterval(
+        intervalId
+      );
+
+      window.removeEventListener(
+        "focus",
+        checkDateChange
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      previousDateKeyRef.current =
+        currentDateKey;
+
+      return;
+    }
+
+    const previousDateKey =
+      previousDateKeyRef.current;
+
+    if (
+      previousDateKey ===
+      currentDateKey
+    ) {
+      return;
+    }
+
+    previousDateKeyRef.current =
+      currentDateKey;
+
+    let isMounted = true;
+
+    const reloadForNewDate =
+      async () => {
+        try {
+          setMessage("");
+
+          setActiveReflectionQuestion(
+            null
+          );
+
+          setIsInitialContentLoaded(
+            false
+          );
+
+          const [
+            todayContent,
+            recentLogs,
+          ] =
+            await Promise.all([
+              loadTodayLog(
+                user.id
+              ),
+
+              loadRecentLogs(
+                user.id
+              ),
+            ]);
+
+          if (!isMounted) {
+            return;
+          }
+
+          applyLoadedDailyData(
+            user.id,
+            todayContent,
+            recentLogs,
+            currentDateKey
+          );
+
+          setAnalysisVersion(
+            (
+              previous
+            ) =>
+              previous + 1
+          );
+
+          setAnalysisRequestVersion(
+            (
+              previous
+            ) =>
+              previous + 1
+          );
+
+          setReflectionLoopVersion(
+            (
+              previous
+            ) =>
+              previous + 1
+          );
+
+          setMeaningGrowthVersion(
+            (
+              previous
+            ) =>
+              previous + 1
+          );
+
+          setTodaysReflectionVersion(
+            (
+              previous
+            ) =>
+              previous + 1
+          );
+
+          setWeeklyReportVersion(
+            (
+              previous
+            ) =>
+              previous + 1
+          );
+
+          setTimelineVersion(
+            (
+              previous
+            ) =>
+              previous + 1
+          );
+        } catch (error) {
+          console.error(
+            "날짜 변경 후 데이터 재조회 실패:",
+            error
+          );
+
+          if (
+            isMounted
+          ) {
+            setIsInitialContentLoaded(
+              true
+            );
+          }
+        }
+      };
+
+    void reloadForNewDate();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    user,
+    currentDateKey,
+  ]);
+
+  useEffect(() => {
     if (
       !draftKey ||
       !isInitialContentLoaded
@@ -454,7 +733,9 @@ export default function Home() {
       return;
     }
 
-    if (content.trim()) {
+    if (
+      content.trim()
+    ) {
       window.localStorage.setItem(
         draftKey,
         content
@@ -479,7 +760,9 @@ export default function Home() {
       try {
         await login();
       } catch (error) {
-        console.error(error);
+        console.error(
+          error
+        );
 
         setMessage(
           "Google 로그인 중 오류가 발생했습니다."
@@ -493,7 +776,11 @@ export default function Home() {
         await logout();
 
         setUser(null);
-        setUserPlan("free");
+
+        setUserPlan(
+          "free"
+        );
+
         setContent("");
         setLogs([]);
 
@@ -509,7 +796,9 @@ export default function Home() {
           false
         );
       } catch (error) {
-        console.error(error);
+        console.error(
+          error
+        );
 
         setMessage(
           "로그아웃 중 오류가 발생했습니다."
@@ -517,188 +806,242 @@ export default function Home() {
       }
     };
 
-  const handleContinueReflection = (
-    question: string
-  ) => {
-    setActiveReflectionQuestion(
-      question
-    );
+  const handleContinueReflection =
+    (
+      question: string
+    ) => {
+      setActiveReflectionQuestion(
+        question
+      );
 
-    setMessage(
-      "질문을 보며 떠오른 생각을 오늘 기록에 덧붙여 보세요."
-    );
+      setMessage(
+        "질문을 보며 떠오른 생각을 오늘 기록에 덧붙여 보세요."
+      );
 
-    window.requestAnimationFrame(
-      () => {
-        dailyLogFormRef.current
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
+      window.requestAnimationFrame(
+        () => {
+          dailyLogFormRef.current
+            ?.scrollIntoView({
+              behavior:
+                "smooth",
+              block:
+                "start",
+            });
 
-        window.setTimeout(() => {
-          const input =
-            dailyLogFormRef.current
-              ?.querySelector<
-                HTMLTextAreaElement
-              >("textarea");
+          window.setTimeout(
+            () => {
+              const input =
+                dailyLogFormRef.current
+                  ?.querySelector<
+                    HTMLTextAreaElement
+                  >(
+                    "textarea"
+                  );
 
-          input?.focus();
+              input?.focus();
 
-          if (!input) {
-            return;
-          }
+              if (!input) {
+                return;
+              }
 
-          const cursorPosition =
-            input.value.length;
+              const cursorPosition =
+                input.value.length;
 
-          input.setSelectionRange(
-            cursorPosition,
-            cursorPosition
+              input.setSelectionRange(
+                cursorPosition,
+                cursorPosition
+              );
+            },
+            500
           );
-        }, 500);
-      }
-    );
-  };
-
-  const handleSave = async () => {
-    setMessage("");
-
-    if (!user) {
-      setMessage(
-        "로그인이 필요합니다."
+        }
       );
+    };
 
-      return;
-    }
+  const handleSave =
+    async () => {
+      setMessage("");
 
-    const trimmedContent =
-      content.trim();
-
-    if (!trimmedContent) {
-      setMessage(
-        "기록을 입력해 주세요."
-      );
-
-      return;
-    }
-
-    try {
-      const previousLog =
-        await loadTodayLogRow(
-          user.id
-        );
-
-      if (
-        previousLog?.content.trim() ===
-        trimmedContent
-      ) {
+      if (!user) {
         setMessage(
-          "변경된 내용이 없습니다."
+          "로그인이 필요합니다."
         );
 
         return;
       }
 
-      const savedLog =
-        await saveTodayLog(
-          user.id,
+      const latestDateKey =
+        getLocalDateKey();
+
+      if (
+        latestDateKey !==
+        currentDateKey
+      ) {
+        setCurrentDateKey(
+          latestDateKey
+        );
+
+        setMessage(
+          "날짜가 변경되었습니다. 오늘 기록을 다시 확인한 뒤 저장해 주세요."
+        );
+
+        return;
+      }
+
+      const trimmedContent =
+        content.trim();
+
+      if (!trimmedContent) {
+        setMessage(
+          "기록을 입력해 주세요."
+        );
+
+        return;
+      }
+
+      try {
+        const previousLog =
+          await loadTodayLogRow(
+            user.id
+          );
+
+        if (
+          previousLog?.content.trim() ===
           trimmedContent
+        ) {
+          setMessage(
+            "변경된 내용이 없습니다."
+          );
+
+          return;
+        }
+
+        const savedLog =
+          await saveTodayLog(
+            user.id,
+            trimmedContent
+          );
+
+        if (!previousLog) {
+          await saveLogRevision({
+            userId:
+              user.id,
+
+            dailyLogId:
+              savedLog.id,
+
+            logDate:
+              savedLog.log_date,
+
+            content:
+              savedLog.content,
+
+            source:
+              "initial",
+          });
+        } else {
+          await saveLogRevision({
+            userId:
+              user.id,
+
+            dailyLogId:
+              previousLog.id,
+
+            logDate:
+              previousLog.log_date,
+
+            content:
+              previousLog.content,
+
+            source:
+              "initial",
+          });
+
+          await saveLogRevision({
+            userId:
+              user.id,
+
+            dailyLogId:
+              savedLog.id,
+
+            logDate:
+              savedLog.log_date,
+
+            content:
+              savedLog.content,
+
+            source:
+              "manual_edit",
+          });
+        }
+
+        await deleteTodayAnalysis(
+          user.id
         );
 
-      if (!previousLog) {
-        await saveLogRevision({
-          userId: user.id,
-          dailyLogId:
-            savedLog.id,
-          logDate:
-            savedLog.log_date,
-          content:
-            savedLog.content,
-          source: "initial",
-        });
-      } else {
-        await saveLogRevision({
-          userId: user.id,
-          dailyLogId:
-            previousLog.id,
-          logDate:
-            previousLog.log_date,
-          content:
-            previousLog.content,
-          source: "initial",
-        });
+        await deleteTodayMeaningGrowthAnalysis(
+          user.id
+        );
 
-        await saveLogRevision({
-          userId: user.id,
-          dailyLogId:
-            savedLog.id,
-          logDate:
-            savedLog.log_date,
-          content:
-            savedLog.content,
-          source: "manual_edit",
-        });
-      }
+        await deleteTodayTodaysReflection(
+          user.id
+        );
 
-      await deleteTodayAnalysis(
-        user.id
-      );
+        setIsInitialContentLoaded(
+          false
+        );
 
-      await deleteTodayMeaningGrowthAnalysis(
-        user.id
-      );
+        if (draftKey) {
+          window.localStorage.removeItem(
+            draftKey
+          );
+        }
 
-      await deleteTodayTodaysReflection(
-        user.id
-      );
+        await refreshLogs(
+          user.id,
+          currentDateKey
+        );
 
-      setIsInitialContentLoaded(
-        false
-      );
+        setAnalysisVersion(
+          (
+            previous
+          ) =>
+            previous + 1
+        );
 
-      if (draftKey) {
-        window.localStorage.removeItem(
-          draftKey
+        setAnalysisRequestVersion(
+          (
+            previous
+          ) =>
+            previous + 1
+        );
+
+        setActiveReflectionQuestion(
+          null
+        );
+
+        setMessage(
+          previousLog
+            ? "✅ 수정된 기록이 저장되었습니다.\nAI가 기록의 변화를 살펴보고 있습니다."
+            : "✅ 오늘의 기록이 저장되었습니다.\nAI가 기록의 변화를 살펴보고 있습니다."
+        );
+      } catch (error) {
+        console.error(
+          error
+        );
+
+        setMessage(
+          "저장 중 오류가 발생했습니다."
         );
       }
-
-      await refreshLogs(
-        user.id
-      );
-
-      setAnalysisVersion(
-        (previous) =>
-          previous + 1
-      );
-
-      setAnalysisRequestVersion(
-        (previous) =>
-          previous + 1
-      );
-
-      setActiveReflectionQuestion(
-        null
-      );
-
-      setMessage(
-        previousLog
-          ? "✅ 수정된 기록이 저장되었습니다.\nAI가 기록의 변화를 살펴보고 있습니다."
-          : "✅ 오늘의 기록이 저장되었습니다.\nAI가 기록의 변화를 살펴보고 있습니다."
-      );
-    } catch (error) {
-      console.error(error);
-
-      setMessage(
-        "저장 중 오류가 발생했습니다."
-      );
-    }
-  };
+    };
 
   if (!user) {
     return (
       <LoginForm
-        message={message}
+        message={
+          message
+        }
         onGoogleLogin={
           handleGoogleLogin
         }
@@ -710,7 +1053,9 @@ export default function Home() {
     <main className="min-h-screen bg-gray-50 py-6 sm:py-10">
       <div className="mx-auto w-full max-w-xl rounded-2xl bg-white p-5 shadow-lg sm:p-8">
         <div
-          ref={dailyLogFormRef}
+          ref={
+            dailyLogFormRef
+          }
           className="scroll-mt-6"
         >
           {activeReflectionQuestion && (
@@ -743,8 +1088,12 @@ export default function Home() {
           )}
 
           <DailyLogForm
-            content={content}
-            message={message}
+            content={
+              content
+            }
+            message={
+              message
+            }
             onContentChange={
               setContent
             }
@@ -758,10 +1107,11 @@ export default function Home() {
         </div>
 
         <RecentLogs
-          logs={logs}
+          logs={
+            logs
+          }
         />
 
-        {/* 오늘: Free 핵심 경험 */}
         <section className="mt-10">
           <div className="mb-5">
             <p className="text-sm font-semibold text-indigo-600">
@@ -781,8 +1131,12 @@ export default function Home() {
           </div>
 
           <AIInsightCard
-            userId={user.id}
-            logs={logs}
+            userId={
+              user.id
+            }
+            logs={
+              logs
+            }
             refreshKey={
               analysisVersion
             }
@@ -791,36 +1145,48 @@ export default function Home() {
             }
             onAnalysisComplete={() => {
               setTimelineVersion(
-                (previous) =>
+                (
+                  previous
+                ) =>
                   previous + 1
               );
 
               setWeeklyReportVersion(
-                (previous) =>
+                (
+                  previous
+                ) =>
                   previous + 1
               );
 
               setReflectionLoopVersion(
-                (previous) =>
+                (
+                  previous
+                ) =>
                   previous + 1
               );
             }}
             onMeaningGrowthComplete={() =>
               setMeaningGrowthVersion(
-                (previous) =>
+                (
+                  previous
+                ) =>
                   previous + 1
               )
             }
             onTodaysReflectionComplete={() =>
               setTodaysReflectionVersion(
-                (previous) =>
+                (
+                  previous
+                ) =>
                   previous + 1
               )
             }
           />
 
           <ReflectionLoopV3Card
-            userId={user.id}
+            userId={
+              user.id
+            }
             refreshKey={
               reflectionLoopVersion
             }
@@ -830,42 +1196,48 @@ export default function Home() {
           />
 
           <TodaysReflectionCard
-            userId={user.id}
+            userId={
+              user.id
+            }
             refreshKey={
               todaysReflectionVersion
             }
           />
         </section>
 
-        {/* 발견: Free */}
         <TimelineSection
           icon="🔍"
           title="발견"
           description="기록에서 반복해서 나타난 반응과 몰입 가능성을 살펴봅니다."
         >
           <GrowthSignalCard
-            userId={user.id}
+            userId={
+              user.id
+            }
             refreshKey={
               analysisVersion
             }
           />
 
           <MeaningGrowthCard
-            userId={user.id}
+            userId={
+              user.id
+            }
             refreshKey={
               meaningGrowthVersion
             }
           />
 
           <ImmersionDiscoveryV2Card
-            userId={user.id}
+            userId={
+              user.id
+            }
             refreshKey={
               analysisVersion
             }
-          />     
+          />
         </TimelineSection>
 
-        {/* 지난 7일: Plus */}
         <TimelineSection
           icon="📅"
           title="지난 7일"
@@ -873,16 +1245,18 @@ export default function Home() {
           badge="Plus"
         >
           <WeeklyReportCard
-            userId={user.id}
-            plan={userPlan}
+            userId={
+              user.id
+            }
+            plan={
+              userPlan
+            }
             refreshKey={
               weeklyReportVersion
             }
           />
-
         </TimelineSection>
 
-        {/* 시간 속 변화: Plus */}
         <TimelineSection
           icon="🌱"
           title="시간 속 변화"
@@ -890,16 +1264,24 @@ export default function Home() {
           badge="Plus"
         >
           <ReactionTrendCard
-            userId={user.id}
-            plan={userPlan}
+            userId={
+              user.id
+            }
+            plan={
+              userPlan
+            }
             refreshKey={
               timelineVersion
             }
           />
 
           <ReactionTimelineCard
-            userId={user.id}
-            plan={userPlan}
+            userId={
+              user.id
+            }
+            plan={
+              userPlan
+            }
             refreshKey={
               timelineVersion
             }

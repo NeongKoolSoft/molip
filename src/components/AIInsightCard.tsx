@@ -6,8 +6,17 @@ import {
   useState,
 } from "react";
 
-import type { DailyLog } from "@/types/dailyLog";
-import type { AIInsight } from "@/services/aiInsightService";
+import type {
+  DailyLog,
+} from "@/types/dailyLog";
+
+import type {
+  AIInsight,
+} from "@/services/aiInsightService";
+
+import {
+  getToday,
+} from "@/services/dailyLogService";
 
 import {
   getTodayAnalysis,
@@ -44,7 +53,10 @@ type AIInsightCardProps = {
   onTodaysReflectionComplete: () => void;
 };
 
-const typeLabels: Record<string, string> = {
+const typeLabels: Record<
+  string,
+  string
+> = {
   interest: "관심",
   desire: "욕구",
   avoidance: "회피",
@@ -65,14 +77,22 @@ export default function AIInsightCard({
   onMeaningGrowthComplete,
   onTodaysReflectionComplete,
 }: AIInsightCardProps) {
-  const [insight, setInsight] =
-    useState<AIInsight | null>(null);
+  const [
+    insight,
+    setInsight,
+  ] = useState<AIInsight | null>(
+    null
+  );
 
-  const [loading, setLoading] =
-    useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
-  const [message, setMessage] =
-    useState("");
+  const [
+    message,
+    setMessage,
+  ] = useState("");
 
   const [
     showAllReactionTargets,
@@ -82,52 +102,57 @@ export default function AIInsightCard({
   const lastHandledRequestKeyRef =
     useRef(0);
 
-  const today = new Date()
-    .toISOString()
-    .slice(0, 10);
+  const today =
+    getToday();
 
-  const todayLogs = logs.filter(
-    (log) => log.log_date === today
-  );
+  const todayLogs =
+    logs.filter(
+      (log) =>
+        log.log_date === today
+    );
 
-  const ensureMeaningGrowth = async () => {
-    const cachedMeaningGrowth =
-      await getTodayMeaningGrowthAnalysis(
-        userId
-      );
+  const ensureMeaningGrowth =
+    async () => {
+      const cachedMeaningGrowth =
+        await getTodayMeaningGrowthAnalysis(
+          userId
+        );
 
-    if (cachedMeaningGrowth) {
-      return;
-    }
+      if (cachedMeaningGrowth) {
+        return;
+      }
 
-    const context =
-      await loadTodayMeaningGrowthRevisionContext(
-        userId
-      );
+      const context =
+        await loadTodayMeaningGrowthRevisionContext(
+          userId
+        );
 
-    if (!context) {
-      return;
-    }
+      if (!context) {
+        return;
+      }
 
-    const meaningGrowth =
-      await analyzeMeaningGrowth(
-        context.initialContent,
-        context.latestContent
-      );
+      const meaningGrowth =
+        await analyzeMeaningGrowth(
+          context.initialContent,
+          context.latestContent
+        );
 
-    await saveMeaningGrowthAnalysis({
-      userId,
-      dailyLogId: context.dailyLogId,
-      logDate: context.logDate,
-      initialRevisionNumber:
-        context.initialRevisionNumber,
-      latestRevisionNumber:
-        context.latestRevisionNumber,
-      result: meaningGrowth,
-    });
+      await saveMeaningGrowthAnalysis({
+        userId,
+        dailyLogId:
+          context.dailyLogId,
+        logDate:
+          context.logDate,
+        initialRevisionNumber:
+          context.initialRevisionNumber,
+        latestRevisionNumber:
+          context.latestRevisionNumber,
+        result:
+          meaningGrowth,
+      });
 
-    onMeaningGrowthComplete();
-  };
+      onMeaningGrowthComplete();
+    };
 
   const ensureTodaysReflection =
     async () => {
@@ -159,8 +184,10 @@ export default function AIInsightCard({
 
       await saveTodaysReflection({
         userId,
-        dailyLogId: context.dailyLogId,
-        logDate: context.logDate,
+        dailyLogId:
+          context.dailyLogId,
+        logDate:
+          context.logDate,
         latestRevisionNumber:
           context.latestRevisionNumber,
         result,
@@ -173,121 +200,145 @@ export default function AIInsightCard({
   const createDerivedAnalyses =
     async () => {
       await ensureMeaningGrowth();
+
       await ensureTodaysReflection();
     };
 
-  const handleAnalyze = async () => {
-    if (
-      loading ||
-      todayLogs.length === 0
-    ) {
-      return;
-    }
+  const handleAnalyze =
+    async () => {
+      if (
+        loading ||
+        todayLogs.length === 0
+      ) {
+        return;
+      }
 
-    setInsight(null);
-    setShowAllReactionTargets(false);
-    setLoading(true);
-    setMessage("");
+      setInsight(null);
 
-    try {
-      const cached =
-        await getTodayAnalysis(userId);
+      setShowAllReactionTargets(
+        false
+      );
 
-      if (cached) {
-        setInsight(cached);
+      setLoading(true);
+      setMessage("");
+
+      try {
+        const cached =
+          await getTodayAnalysis(
+            userId
+          );
+
+        if (cached) {
+          setInsight(cached);
+
+          onAnalysisComplete();
+
+          try {
+            await createDerivedAnalyses();
+          } catch (
+            derivedError
+          ) {
+            console.error(
+              "파생 분석 생성 오류:",
+              derivedError
+            );
+
+            setMessage(
+              "기본 AI 분석은 불러왔지만, 일부 변화 분석을 만드는 중 오류가 발생했습니다."
+            );
+          }
+
+          return;
+        }
+
+        const response =
+          await fetch(
+            "/api/analyze",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  logs:
+                    todayLogs,
+                }),
+            }
+          );
+
+        if (!response.ok) {
+          const responseText =
+            await response.text();
+
+          console.error(
+            "AI 분석 API 오류:",
+            response.status,
+            responseText
+          );
+
+          throw new Error(
+            "AI 분석에 실패했습니다."
+          );
+        }
+
+        const data:
+          AIInsight =
+          await response.json();
+
+        await saveAIAnalysis(
+          userId,
+          data
+        );
+
+        setInsight(data);
+
         onAnalysisComplete();
 
         try {
           await createDerivedAnalyses();
-        } catch (derivedError) {
+        } catch (
+          derivedError
+        ) {
           console.error(
             "파생 분석 생성 오류:",
             derivedError
           );
 
           setMessage(
-            "기본 AI 분석은 불러왔지만, 일부 변화 분석을 만드는 중 오류가 발생했습니다."
+            "AI 분석은 완료됐지만, 일부 변화 분석을 만드는 중 오류가 발생했습니다."
           );
         }
-
-        return;
-      }
-
-      const response = await fetch(
-        "/api/analyze",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            logs: todayLogs,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const responseText =
-          await response.text();
-
+      } catch (error) {
         console.error(
-          "AI 분석 API 오류:",
-          response.status,
-          responseText
+          "AI 분석 오류:",
+          error
         );
 
-        throw new Error(
-          "AI 분석에 실패했습니다."
-        );
-      }
-
-      const data: AIInsight =
-        await response.json();
-
-      await saveAIAnalysis(
-        userId,
-        data
-      );
-
-      setInsight(data);
-      onAnalysisComplete();
-
-      try {
-        await createDerivedAnalyses();
-      } catch (derivedError) {
-        console.error(
-          "파생 분석 생성 오류:",
-          derivedError
-        );
+        setInsight(null);
 
         setMessage(
-          "AI 분석은 완료됐지만, 일부 변화 분석을 만드는 중 오류가 발생했습니다."
+          error instanceof Error
+            ? error.message
+            : "AI 분석 중 오류가 발생했습니다."
         );
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error(
-        "AI 분석 오류:",
-        error
-      );
-
-      setInsight(null);
-
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "AI 분석 중 오류가 발생했습니다."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   useEffect(() => {
     let isMounted = true;
 
     setInsight(null);
-    setShowAllReactionTargets(false);
+    setMessage("");
+
+    setShowAllReactionTargets(
+      false
+    );
 
     const loadCachedAnalysis =
       async () => {
@@ -297,26 +348,36 @@ export default function AIInsightCard({
               userId
             );
 
-          if (
-            isMounted &&
-            cached
-          ) {
-            setInsight(cached);
+          if (isMounted) {
+            setInsight(
+              cached
+            );
           }
         } catch (error) {
           console.error(
             "저장된 AI 분석 조회 오류:",
             error
           );
+
+          if (isMounted) {
+            setInsight(null);
+
+            setMessage(
+              "저장된 AI 분석을 불러오지 못했습니다."
+            );
+          }
         }
       };
 
-    loadCachedAnalysis();
+    void loadCachedAnalysis();
 
     return () => {
       isMounted = false;
     };
-  }, [userId, refreshKey]);
+  }, [
+    userId,
+    refreshKey,
+  ]);
 
   useEffect(() => {
     if (
@@ -336,7 +397,9 @@ export default function AIInsightCard({
     // analysisRequestKey가 변경될 때만
     // 저장 후 자동 분석을 실행한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analysisRequestKey]);
+  }, [
+    analysisRequestKey,
+  ]);
 
   const validReactionTargets =
     insight?.reaction_targets.filter(
@@ -344,17 +407,22 @@ export default function AIInsightCard({
         item &&
         item.target &&
         item.normalized_target &&
-        typeof item.weight === "number"
+        typeof item.weight ===
+          "number"
     ) ?? [];
 
   const displayedReactionTargets =
     showAllReactionTargets
       ? validReactionTargets
-      : validReactionTargets.slice(0, 3);
+      : validReactionTargets.slice(
+          0,
+          3
+        );
 
   const hiddenReactionTargetCount =
     Math.max(
-      validReactionTargets.length - 3,
+      validReactionTargets.length -
+        3,
       0
     );
 
@@ -375,8 +443,9 @@ export default function AIInsightCard({
           </h2>
 
           <p className="mt-3 break-keep text-sm leading-7 text-slate-600 sm:text-base">
-            오늘 기록에서 마음이 움직인 대상과
-            에너지, 몰입 신호를 살펴봅니다.
+            오늘 기록에서 마음이 움직인
+            대상과 에너지, 몰입 신호를
+            살펴봅니다.
           </p>
         </div>
       </div>
@@ -397,8 +466,9 @@ export default function AIInsightCard({
               </p>
 
               <p className="mt-1 break-keep text-sm leading-6 text-slate-600">
-                기록에서 마음이 움직인 대상과
-                변화의 흐름을 살펴보는 중입니다.
+                기록에서 마음이 움직인
+                대상과 변화의 흐름을
+                살펴보는 중입니다.
               </p>
             </div>
           </div>
@@ -407,23 +477,26 @@ export default function AIInsightCard({
 
       {!loading &&
         !insight &&
-        todayLogs.length === 0 && (
+        todayLogs.length ===
+          0 && (
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
             <p className="break-keep text-sm leading-6 text-slate-500">
-              오늘 기록을 저장하면 AI 분석이
-              자동으로 시작됩니다.
+              오늘 기록을 저장하면 AI
+              분석이 자동으로 시작됩니다.
             </p>
           </div>
         )}
 
       {!loading &&
         !insight &&
-        todayLogs.length > 0 &&
+        todayLogs.length >
+          0 &&
         !message && (
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
             <p className="break-keep text-sm leading-6 text-slate-500">
-              기록을 저장하거나 수정하면 AI가
-              변화를 자동으로 살펴봅니다.
+              기록을 저장하거나 수정하면
+              AI가 변화를 자동으로
+              살펴봅니다.
             </p>
           </div>
         )}
@@ -457,7 +530,8 @@ export default function AIInsightCard({
                 (item) => {
                   const percentage =
                     Math.round(
-                      item.weight * 100
+                      item.weight *
+                        100
                     );
 
                   return (
@@ -475,12 +549,15 @@ export default function AIInsightCard({
                         <span className="shrink-0 rounded-full border border-indigo-100 bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
                           {typeLabels[
                             item.type
-                          ] ?? item.type}
+                          ] ??
+                            item.type}
                         </span>
                       </div>
 
                       <p className="mt-2 line-clamp-2 break-keep text-sm leading-6 text-slate-600">
-                        {item.evidence}
+                        {
+                          item.evidence
+                        }
                       </p>
 
                       <div className="mt-4 flex items-center gap-3">
@@ -495,17 +572,23 @@ export default function AIInsightCard({
                         </div>
 
                         <span className="shrink-0 text-xs font-semibold text-indigo-600">
-                          {percentage}%
+                          {
+                            percentage
+                          }
+                          %
                         </span>
                       </div>
 
                       <details className="mt-3">
                         <summary className="cursor-pointer list-none text-[11px] font-medium text-slate-400">
-                          기록 속 표현 보기 ▾
+                          기록 속 표현 보기
+                          ▾
                         </summary>
 
                         <p className="mt-2 text-xs leading-5 text-slate-500">
-                          {item.target}
+                          {
+                            item.target
+                          }
                         </p>
                       </details>
                     </article>
@@ -513,12 +596,16 @@ export default function AIInsightCard({
                 }
               )}
 
-              {hiddenReactionTargetCount > 0 && (
+              {hiddenReactionTargetCount >
+                0 && (
                 <button
                   type="button"
                   onClick={() =>
                     setShowAllReactionTargets(
-                      (previous) => !previous
+                      (
+                        previous
+                      ) =>
+                        !previous
                     )
                   }
                   aria-expanded={
@@ -616,7 +703,9 @@ export default function AIInsightCard({
                 </p>
 
                 <p className="mt-3 break-keep text-base leading-8 text-slate-700">
-                  {insight.summary}
+                  {
+                    insight.summary
+                  }
                 </p>
               </div>
             </div>
@@ -636,11 +725,14 @@ export default function AIInsightCard({
                   </p>
 
                   <p className="mt-3 break-keep text-lg font-bold leading-8 text-slate-900">
-                    아래 Reflection Loop에서
+                    아래 Reflection
+                    Loop에서
                     <br />
-                    AI와 함께 오늘의 생각을
+                    AI와 함께 오늘의
+                    생각을
                     <br />
-                    조금 더 이어가 보세요.
+                    조금 더 이어가
+                    보세요.
                   </p>
                 </div>
               </div>

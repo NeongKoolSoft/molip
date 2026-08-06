@@ -1,6 +1,10 @@
 import { supabase } from "@/lib/supabase";
 
-import type { MeaningGrowth } from "@/types/meaningGrowth";
+import { getToday } from "@/services/dailyLogService";
+
+import type {
+  MeaningGrowth,
+} from "@/types/meaningGrowth";
 
 type SaveMeaningGrowthParams = {
   userId: string;
@@ -25,22 +29,37 @@ export async function saveMeaningGrowthAnalysis({
   latestRevisionNumber,
   result,
 }: SaveMeaningGrowthParams): Promise<void> {
-  const { error } = await supabase
-    .from("meaning_growth_analyses")
-    .upsert(
-      {
-        user_id: userId,
-        daily_log_id: dailyLogId,
-        log_date: logDate,
-        initial_revision_number: initialRevisionNumber,
-        latest_revision_number: latestRevisionNumber,
-        result,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "daily_log_id",
-      }
-    );
+  const { error } =
+    await supabase
+      .from(
+        "meaning_growth_analyses"
+      )
+      .upsert(
+        {
+          user_id: userId,
+
+          daily_log_id:
+            dailyLogId,
+
+          log_date:
+            logDate,
+
+          initial_revision_number:
+            initialRevisionNumber,
+
+          latest_revision_number:
+            latestRevisionNumber,
+
+          result,
+
+          updated_at:
+            new Date().toISOString(),
+        },
+        {
+          onConflict:
+            "daily_log_id",
+        }
+      );
 
   if (error) {
     throw error;
@@ -50,40 +69,66 @@ export async function saveMeaningGrowthAnalysis({
 export async function getTodayMeaningGrowthAnalysis(
   userId: string
 ): Promise<MeaningGrowth | null> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today =
+    getToday();
 
-  const { data, error } = await supabase
-    .from("meaning_growth_analyses")
-    .select(
-      `
-        result,
-        initial_revision_number,
-        latest_revision_number
-      `
-    )
-    .eq("user_id", userId)
-    .eq("log_date", today)
-    .maybeSingle();
+  const { data, error } =
+    await supabase
+      .from(
+        "meaning_growth_analyses"
+      )
+      .select(
+        `
+          result,
+          initial_revision_number,
+          latest_revision_number
+        `
+      )
+      .eq(
+        "user_id",
+        userId
+      )
+      .eq(
+        "log_date",
+        today
+      )
+      .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  const row = data as MeaningGrowthAnalysisRow | null;
+  const row =
+    data as
+      | MeaningGrowthAnalysisRow
+      | null;
 
-  return row?.result ?? null;
+  return (
+    row?.result ??
+    null
+  );
 }
 
 export async function deleteTodayMeaningGrowthAnalysis(
   userId: string
 ): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today =
+    getToday();
 
-  const { error } = await supabase
-    .from("meaning_growth_analyses")
-    .delete()
-    .eq("user_id", userId)
-    .eq("log_date", today);
+  const { error } =
+    await supabase
+      .from(
+        "meaning_growth_analyses"
+      )
+      .delete()
+      .eq(
+        "user_id",
+        userId
+      )
+      .eq(
+        "log_date",
+        today
+      );
 
   if (error) {
     throw error;
