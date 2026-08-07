@@ -1240,7 +1240,7 @@ export default function Home() {
 
         <TimelineSection
           icon="📅"
-          title="지난 7일"
+          title="주간 흐름"
           description="여러 날의 기록을 연결해 이번 주에 이어진 흐름을 돌아봅니다."
           badge="Plus"
         >
